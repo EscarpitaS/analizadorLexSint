@@ -1,0 +1,12 @@
+# IntelliJ metadata and generated compiler output
+.idea/
+*.iml
+out/
+build/
+target/
+
+# Local/editor/runtime files
+*.class
+*.log
+.DS_Store
+
