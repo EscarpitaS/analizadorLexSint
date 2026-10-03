@@ -57,6 +57,13 @@ class NodoArbolSintactico {
     }
     private boolean sintaxisIncompleta;
     private final List<String> accionesSemanticas = new ArrayList<>();
+    private final List<String> erroresSemanticos = new ArrayList<>();
+
+    void registrarErrorSemantico(String mensaje) {
+        if (!erroresSemanticos.contains(mensaje)) erroresSemanticos.add(mensaje);
+    }
+    boolean tieneErrorSemantico() { return !erroresSemanticos.isEmpty(); }
+    List<String> getErroresSemanticos() { return Collections.unmodifiableList(erroresSemanticos); }
 
     void marcarSintaxisIncompleta() { sintaxisIncompleta = true; }
     boolean esSintaxisIncompleta() { return sintaxisIncompleta || nombre.startsWith("ERROR"); }
@@ -72,7 +79,7 @@ class NodoArbolSintactico {
     void limpiarSemantica() {
         tipoSemantico = null; simboloResuelto = null; ambitoResuelto = null;
         claseConstruida = null; despacho = Despacho.NINGUNO; inalcanzable = false;
-        tipoOperacion = null; tipoReceptor = null; receptor = null; hijosAdicionales.clear(); conversiones.clear(); accionesSemanticas.clear();
+        tipoOperacion = null; tipoReceptor = null; receptor = null; hijosAdicionales.clear(); conversiones.clear(); accionesSemanticas.clear(); erroresSemanticos.clear();
     }
     String getTextoVista(boolean semantico) {
         return getTexto() + (esSintaxisIncompleta() ? " [sintaxis incompleta]" : "")

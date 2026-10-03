@@ -22,42 +22,43 @@ import javax.swing.text.StyledDocument;
 import javax.swing.tree.DefaultMutableTreeNode;
 
 class AnalizadorLexicoUI extends JFrame {
-    private static final Color FONDO = new Color(241, 245, 249);
-    private static final Color AZUL_OSCURO = new Color(15, 23, 42);
-    private static final Color AZUL = new Color(37, 99, 235);
-    private static final Color VERDE = new Color(22, 163, 74);
-    private static final Color ROJO = new Color(220, 38, 38);
-    private static final Color BORDE = new Color(203, 213, 225);
+    private static final Color FONDO = new Color(245, 245, 245);
+    private static final Color BORDE = new Color(215, 215, 215);
 
     private Path archivoActual;
-    private final JLabel archivoLabel = new JLabel("Ningun archivo seleccionado");
-    private final JLabel estadoLabel = new JLabel("Selecciona un archivo para iniciar el analisis.");
+    private final JLabel estadoLabel = new JLabel("Escribe código o abre un archivo.");
     private final JLabel archivosValor = crearValorResumen("0");
     private final JLabel tokensValor = crearValorResumen("0");
     private final JLabel erroresValor = crearValorResumen("0");
     private final JTabbedPane pestanas = new JTabbedPane();
-    private final JButton analizarButton = crearBotonSecundario("Analizar de nuevo");
+    private final JTabbedPane espacioTrabajo = new JTabbedPane();
+    private final EditorCodigo editor = new EditorCodigo();
+    private final JButton analizarButton = crearBotonPrincipal("Analizar · F5");
     private final JButton ampliarResultadosButton = crearBotonSecundario("Ampliar resultados");
     private final JButton guardarReporteButton = crearBotonSecundario("Guardar reporte");
     private final JButton ejemploButton = crearBotonSecundario("Abrir ejemplo");
 
     private JCheckBox validarImportsCheck;
 
-    private JPanel encabezadoPanel;
     private boolean resultadosAmpliados = false;
     private int estadoVentanaNormal = Frame.NORMAL;
     private List<Main.ResultadoAnalisis> ultimosResultados = new ArrayList<>();
+    private boolean analizando;
+    private long solicitudAnalisis;
+    private long revisionAnalizada = -1;
+    private Path archivoAnalizado;
 
     AnalizadorLexicoUI() {
         super("Lexer / Parser");
         configurarLookAndFeel();
+        SwingUtilities.updateComponentTreeUI(editor);
         configurarVentana();
     }
 
     void mostrar(Path archivoInicial) {
         setVisible(true);
         if (archivoInicial != null) {
-            analizarArchivo(archivoInicial);
+            cargarArchivo(archivoInicial);
         }
     }
 
@@ -68,120 +69,100 @@ class AnalizadorLexicoUI extends JFrame {
     }
 
     private void configurarVentana() {
-        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override public void windowClosing(java.awt.event.WindowEvent e) {
+                if (confirmarCambiosPendientes()) { dispose(); System.exit(0); }
+            }
+        });
         setMinimumSize(new Dimension(1120, 760));
         setPreferredSize(new Dimension(1220, 820));
 
-        JPanel raiz = new JPanel(new BorderLayout(0, 16));
+        JPanel raiz = new JPanel(new BorderLayout(0, 8));
         raiz.setBackground(FONDO);
-        raiz.setBorder(new EmptyBorder(18, 18, 18, 18));
+        raiz.setBorder(new EmptyBorder(12, 12, 12, 12));
 
-        encabezadoPanel = crearEncabezado();
-        raiz.add(encabezadoPanel, BorderLayout.NORTH);
+        integrarControlesEditor();
         raiz.add(crearContenido(), BorderLayout.CENTER);
 
+        EstiloInterfaz.aplicar(raiz);
         setContentPane(raiz);
+        editor.configurarAcciones(this::nuevoArchivo, this::elegirArchivo,
+                () -> guardarCodigo(false), () -> guardarCodigo(true));
+        editor.alCambiar(this::actualizarEstadoEditor);
+        getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("F5"), "analizar");
+        getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("control ENTER"), "analizar");
+        getRootPane().getActionMap().put("analizar", new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent e) { analizarEditor(); }
+        });
+        atajoGlobal("control S", () -> guardarCodigo(false));
+        atajoGlobal("control shift S", () -> guardarCodigo(true));
+        atajoGlobal("control N", this::nuevoArchivo);
+        atajoGlobal("control O", this::elegirArchivo);
         limpiarResultados();
+        actualizarEstadoEditor();
         pack();
         setLocationRelativeTo(null);
     }
 
-    private JPanel crearEncabezado() {
-        JPanel contenedor = new JPanel(new BorderLayout(16, 16));
-        contenedor.setOpaque(false);
-
-        JPanel tituloPanel = new GradientPanel();
-        tituloPanel.setLayout(new BorderLayout(12, 12));
-        tituloPanel.setBorder(new EmptyBorder(24, 26, 24, 26));
-
-        JLabel titulo = new JLabel("Analizador Lexico y Sintactico");
-        titulo.setForeground(Color.WHITE);
-        titulo.setFont(new Font("Segoe UI", Font.BOLD, 30));
-
-        JLabel subtitulo = new JLabel("Analisis lexico, sintactico y semantico - Arboles y acciones");
-        subtitulo.setForeground(new Color(219, 234, 254));
-        subtitulo.setFont(new Font("Segoe UI", Font.PLAIN, 15));
-
-        JPanel textos = new JPanel(new GridLayout(2, 1, 0, 3));
-        textos.setOpaque(false);
-        textos.add(titulo);
-        textos.add(subtitulo);
-
-        // --- CONFIGURACIÓN DE ACCIONES ---
+    private void integrarControlesEditor() {
         validarImportsCheck = new JCheckBox("Validar imports locales");
         validarImportsCheck.setOpaque(false);
-        validarImportsCheck.setForeground(Color.WHITE);
-        validarImportsCheck.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        validarImportsCheck.setToolTipText("Busca archivos importados del proyecto. Dejalo apagado para analizar un solo archivo.");
+        validarImportsCheck.setForeground(Color.BLACK);
+        validarImportsCheck.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        validarImportsCheck.setToolTipText("Busca archivos importados del proyecto. Déjalo desactivado para analizar un solo archivo.");
         validarImportsCheck.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        JButton abrirButton = crearBotonPrincipal("Abrir archivo");
+        JButton abrirButton = crearBotonSecundario("Abrir archivo");
         abrirButton.addActionListener(e -> elegirArchivo());
-
-        analizarButton.addActionListener(e -> {
-            if (archivoActual != null) analizarArchivo(archivoActual);
-        });
-        analizarButton.setEnabled(false);
-
+        analizarButton.addActionListener(e -> analizarEditor());
+        validarImportsCheck.addActionListener(e -> marcarResultadosDesactualizados());
         ejemploButton.addActionListener(e -> abrirEjemplo());
-
         guardarReporteButton.addActionListener(e -> guardarReporte());
         guardarReporteButton.setEnabled(false);
 
-        JPanel acciones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
-        acciones.setOpaque(false);
-        acciones.add(validarImportsCheck);
-        acciones.add(ejemploButton);
-        acciones.add(abrirButton);
-        acciones.add(analizarButton);
-        acciones.add(guardarReporteButton);
-
-        tituloPanel.add(textos, BorderLayout.CENTER);
-        tituloPanel.add(acciones, BorderLayout.EAST);
-
-        // --- DETALLE Y RESUMEN ---
-        JPanel detalleArchivo = new JPanel(new BorderLayout(8, 4));
-        detalleArchivo.setOpaque(false);
-        archivoLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        estadoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        estadoLabel.setForeground(new Color(71, 85, 105));
-        detalleArchivo.add(archivoLabel, BorderLayout.NORTH);
-        detalleArchivo.add(estadoLabel, BorderLayout.SOUTH);
-
-        JPanel resumen = new JPanel(new GridLayout(1, 3, 12, 0));
-        resumen.setOpaque(false);
-        resumen.add(crearTarjetaResumen("Archivos revisados", archivosValor, AZUL));
-        resumen.add(crearTarjetaResumen("Tokens encontrados", tokensValor, VERDE));
-        resumen.add(crearTarjetaResumen("Errores detectados", erroresValor, ROJO));
-
-        contenedor.add(tituloPanel, BorderLayout.NORTH);
-        contenedor.add(detalleArchivo, BorderLayout.CENTER);
-        contenedor.add(resumen, BorderLayout.SOUTH);
-        return contenedor;
+        editor.integrarAnalisis(abrirButton, ejemploButton,
+                new BarraAnalisis(validarImportsCheck, analizarButton, guardarReporteButton,
+                        archivosValor, tokensValor, erroresValor), estadoLabel);
     }
 
-    private void analizarArchivo(Path archivo) {
-        archivoActual = archivo.toAbsolutePath().normalize();
+    private void analizarEditor() {
+        if (analizando) return;
+        final Path ruta = archivoActual == null ? Paths.get("Sin_titulo.txt").toAbsolutePath().normalize() : archivoActual;
+        final Path identidad = archivoActual;
+        final String fuente = editor.getTexto();
+        final long revision = editor.getRevision();
+        final long solicitud = ++solicitudAnalisis;
+        analizando = true;
         analizarButton.setEnabled(false);
         guardarReporteButton.setEnabled(false);
-        estadoLabel.setForeground(new Color(71, 85, 105));
-        estadoLabel.setText(validarImportsCheck.isSelected()
-                ? "Analizando archivo e imports locales..."
-                : "Analizando archivo...");
+        estadoLabel.setForeground(Color.BLACK);
+        estadoLabel.setText("Analizando el contenido del editor...");
 
-        final boolean validarImports = validarImportsCheck.isSelected();
+        final boolean validarImports = identidad != null && validarImportsCheck.isSelected();
 
         SwingWorker<List<Main.ResultadoAnalisis>, Void> worker = new SwingWorker<>() {
             @Override
             protected List<Main.ResultadoAnalisis> doInBackground() throws Exception {
-                return Main.analizarProyecto(archivoActual, validarImports);
+                return Main.analizarProyecto(ruta, fuente, validarImports);
             }
 
             @Override
             protected void done() {
+                if (solicitud != solicitudAnalisis) return;
+                analizando = false;
                 analizarButton.setEnabled(true);
+                if (revision != editor.getRevision() || !java.util.Objects.equals(identidad, editor.getArchivo())
+                        || validarImports != (editor.getArchivo() != null && validarImportsCheck.isSelected())) {
+                    estadoLabel.setText("El código cambió durante el análisis. Los resultados están desactualizados.");
+                    return;
+                }
                 try {
+                    revisionAnalizada = revision;
+                    archivoAnalizado = identidad;
                     mostrarResultados(get());
+                    espacioTrabajo.setTitleAt(1, "Resultados");
+                    espacioTrabajo.setSelectedIndex(1);
                 } catch (Exception e) {
                     mostrarErrorLectura(e);
                 }
@@ -205,9 +186,9 @@ class AnalizadorLexicoUI extends JFrame {
         barraResultados.setBackground(Color.WHITE);
         barraResultados.setBorder(new EmptyBorder(0, 0, 10, 0));
 
-        JLabel tituloResultados = new JLabel("Resultados del analisis");
+        JLabel tituloResultados = new JLabel("Resultados del análisis");
         tituloResultados.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        tituloResultados.setForeground(AZUL_OSCURO);
+        tituloResultados.setForeground(Color.BLACK);
 
         ampliarResultadosButton.addActionListener(e -> alternarVistaResultados());
         JPanel accionesResultados = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
@@ -217,8 +198,13 @@ class AnalizadorLexicoUI extends JFrame {
         barraResultados.add(tituloResultados, BorderLayout.WEST);
         barraResultados.add(accionesResultados, BorderLayout.EAST);
 
-        panel.add(barraResultados, BorderLayout.NORTH);
-        panel.add(pestanas, BorderLayout.CENTER);
+        JPanel resultados = new JPanel(new BorderLayout());
+        resultados.add(barraResultados, BorderLayout.NORTH);
+        resultados.add(pestanas, BorderLayout.CENTER);
+        espacioTrabajo.addTab("Editor", editor);
+        espacioTrabajo.addTab("Resultados", resultados);
+        espacioTrabajo.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        panel.add(espacioTrabajo, BorderLayout.CENTER);
         return panel;
     }
 
@@ -226,86 +212,87 @@ class AnalizadorLexicoUI extends JFrame {
         resultadosAmpliados = !resultadosAmpliados;
         if (resultadosAmpliados) {
             estadoVentanaNormal = getExtendedState();
-            encabezadoPanel.setVisible(false);
             ampliarResultadosButton.setText("Vista normal");
             setExtendedState(getExtendedState() | Frame.MAXIMIZED_BOTH);
         } else {
-            encabezadoPanel.setVisible(true);
             ampliarResultadosButton.setText("Ampliar resultados");
             setExtendedState(estadoVentanaNormal);
         }
         revalidate(); repaint();
     }
 
-    private JPanel crearTarjetaResumen(String titulo, JLabel valor, Color color) {
-        JPanel tarjeta = new JPanel(new BorderLayout(0, 6));
-        tarjeta.setBackground(Color.WHITE);
-        tarjeta.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDE),
-                new EmptyBorder(14, 16, 14, 16)));
-        JLabel tituloLabel = new JLabel(titulo.toUpperCase());
-        tituloLabel.setForeground(new Color(100, 116, 139));
-        tituloLabel.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        valor.setForeground(color);
-        tarjeta.add(tituloLabel, BorderLayout.NORTH);
-        tarjeta.add(valor, BorderLayout.CENTER);
-        return tarjeta;
-    }
-
     private static JLabel crearValorResumen(String texto) {
         JLabel label = new JLabel(texto);
-        label.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        label.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
         return label;
     }
 
     private JButton crearBotonPrincipal(String texto) {
         JButton boton = new JButton(texto);
-        boton.setBackground(Color.WHITE);
-        boton.setForeground(AZUL_OSCURO);
-        boton.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        boton.setBackground(new Color(225, 225, 225));
+        boton.setForeground(Color.BLACK);
+        boton.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
         boton.setFocusPainted(false);
-        boton.setBorder(new EmptyBorder(10, 16, 10, 16));
+        boton.setBorder(new EmptyBorder(7, 10, 7, 10));
         return boton;
     }
 
     private JButton crearBotonSecundario(String texto) {
         JButton boton = new JButton(texto);
-        boton.setBackground(new Color(226, 232, 240));
-        boton.setForeground(AZUL_OSCURO);
-        boton.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        boton.setBackground(new Color(250, 250, 250));
+        boton.setForeground(Color.BLACK);
+        boton.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
         boton.setFocusPainted(false);
-        boton.setBorder(new EmptyBorder(10, 16, 10, 16));
+        boton.setBorder(new EmptyBorder(7, 10, 7, 10));
         return boton;
     }
 
     private void elegirArchivo() {
         JFileChooser selector = new JFileChooser();
-        selector.setDialogTitle("Selecciona el archivo de codigo fuente");
+        EstiloInterfaz.aplicar(selector);
+        selector.setDialogTitle("Selecciona el archivo de código fuente");
         selector.setPreferredSize(new Dimension(900, 580));
         selector.setFileFilter(new FileNameExtensionFilter(
-                "Archivos de codigo fuente (.txt, .java, .cpp)", "txt", "java", "cpp"));
+                "Archivos de código fuente (.txt, .java, .cpp)", "txt", "java", "cpp"));
         if (archivoActual != null && archivoActual.getParent() != null) {
             selector.setCurrentDirectory(archivoActual.getParent().toFile());
         }
         if (selector.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            analizarArchivo(selector.getSelectedFile().toPath());
+            if (confirmarCambiosPendientes()) cargarArchivo(selector.getSelectedFile().toPath());
         }
     }
 
     private void abrirEjemplo() {
-        Path ejemplo = localizarEjemploDemo();
+        Path ejemplo;
+        try {
+            ejemplo = localizarEjemploDemo();
+        } catch (IOException e) {
+            mostrarErrorLectura(e);
+            return;
+        }
         if (Files.isRegularFile(ejemplo)) {
-            analizarArchivo(ejemplo);
+            if (!confirmarCambiosPendientes()) return;
+            try {
+                String fuente = Files.readString(ejemplo, StandardCharsets.UTF_8);
+                solicitudAnalisis++;
+                analizando = false;
+                limpiarResultados();
+                editor.cargar(null, fuente);
+                espacioTrabajo.setSelectedIndex(0);
+                estadoLabel.setForeground(Color.BLACK);
+                estadoLabel.setText("Ejemplo cargado como documento nuevo. Guarda para crear tu copia.");
+                editor.enfocar();
+            } catch (IOException e) { mostrarErrorLectura(e); }
             return;
         }
 
         JOptionPane.showMessageDialog(this,
-                "No se encontro el archivo de ejemplo en:\n" + ejemplo,
+                "No se encontró el archivo de ejemplo en:\n" + ejemplo,
                 "Ejemplo no disponible",
                 JOptionPane.WARNING_MESSAGE);
     }
 
-    private Path localizarEjemploDemo() {
+    static Path localizarEjemploDemo() throws IOException {
         Path[] candidatos = {
                 Paths.get("untitled", "ejemplos", "programa_demo.txt"),
                 Paths.get("ejemplos", "programa_demo.txt")
@@ -315,17 +302,27 @@ class AnalizadorLexicoUI extends JFrame {
             Path normalizado = candidato.toAbsolutePath().normalize();
             if (Files.isRegularFile(normalizado)) return normalizado;
         }
+        // El JAR lleva el ejemplo incorporado y funciona desde cualquier carpeta.
+        try (java.io.InputStream recurso = AnalizadorLexicoUI.class.getResourceAsStream("/ejemplos/programa_demo.txt")) {
+            if (recurso != null) {
+                Path extraido = Files.createTempFile("analizador-demo-", ".txt");
+                extraido.toFile().deleteOnExit();
+                Files.copy(recurso, extraido, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                return extraido;
+            }
+        }
         return candidatos[0].toAbsolutePath().normalize();
     }
 
     private void guardarReporte() {
         if (ultimosResultados.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Primero realiza un analisis.");
+            JOptionPane.showMessageDialog(this, "Primero realiza un análisis.");
             return;
         }
 
         JFileChooser selector = new JFileChooser();
-        selector.setDialogTitle("Guardar reporte del analisis");
+        EstiloInterfaz.aplicar(selector);
+        selector.setDialogTitle("Guardar reporte del análisis");
         selector.setSelectedFile(new java.io.File("reporte_analizador.txt"));
         selector.setFileFilter(new FileNameExtensionFilter("Reporte de texto (.txt)", "txt"));
 
@@ -350,52 +347,45 @@ class AnalizadorLexicoUI extends JFrame {
     }
 
     private void mostrarResultados(List<Main.ResultadoAnalisis> resultados) {
-        pestanas.removeAll();
         ultimosResultados = new ArrayList<>(resultados);
         guardarReporteButton.setEnabled(!ultimosResultados.isEmpty());
-        int totalTokens = 0, totalErrores = 0;
-
-        for (Main.ResultadoAnalisis resultado : resultados) {
-            if (resultado.abortadoPorDependencia) {
-                totalErrores += resultado.erroresImport.size();
-                pestanas.addTab("⚠ " + resultado.archivo.getFileName(), crearPanelAbortado(resultado));
-                pestanas.setForegroundAt(pestanas.getTabCount() - 1, ROJO);
-                continue;
-            }
-            List<Token> tokensVisibles = tokensSinEOF(resultado.lexico.getTokens());
-            totalTokens += tokensVisibles.size();
-            totalErrores += resultado.erroresImport.size() + resultado.lexico.getErrors().size();
-            if (resultado.sintactico != null) totalErrores += resultado.sintactico.getErrores().size();
-            if (resultado.semantico != null) totalErrores += resultado.semantico.getErrores().size();
-            pestanas.addTab(resultado.archivo.getFileName().toString(), crearPanelArchivo(resultado, tokensVisibles));
-        }
+        ResumenResultados resumen = llenarPestanas(pestanas, resultados,
+                resultado -> crearPanelArchivo(resultado, tokensSinEOF(resultado.lexico.getTokens())));
+        int totalTokens = resumen.tokens;
+        int totalErrores = resumen.errores;
 
         archivosValor.setText(String.valueOf(resultados.size()));
         tokensValor.setText(String.valueOf(totalTokens));
         erroresValor.setText(String.valueOf(totalErrores));
-        archivoLabel.setText("Archivo principal: " + archivoActual.getFileName());
 
         if (totalErrores == 0) {
-            estadoLabel.setForeground(VERDE);
-            estadoLabel.setText("Analisis completado sin errores.");
+            estadoLabel.setForeground(Color.BLACK);
+            estadoLabel.setText("Análisis completado sin errores.");
         } else {
-            estadoLabel.setForeground(ROJO);
-            estadoLabel.setText("Analisis completado con " + totalErrores + " error(es).");
+            estadoLabel.setForeground(Color.BLACK);
+            estadoLabel.setText("Análisis completado con " + totalErrores + " error(es).");
         }
     }
 
-    private JComponent crearPanelAbortado(Main.ResultadoAnalisis resultado) {
-        JPanel panel = new JPanel(new BorderLayout(0, 12));
-        panel.setBackground(Color.WHITE);
-        panel.setBorder(new EmptyBorder(12, 12, 12, 12));
-        JLabel icono = new JLabel("⚠ ARCHIVO RECHAZADO");
-        icono.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        icono.setForeground(ROJO);
-        JTextArea desc = new JTextArea("Este archivo no fue analizado debido a que sus dependencias son invalidas o no se cumple la estructura minima.");
-        desc.setEditable(false); desc.setWrapStyleWord(true); desc.setLineWrap(true);
-        panel.add(icono, BorderLayout.NORTH);
-        panel.add(desc, BorderLayout.CENTER);
-        return panel;
+    /** Presentación verificable sin construir una ventana ni requerir una pantalla. */
+    static ResumenResultados llenarPestanas(JTabbedPane pestanas, List<Main.ResultadoAnalisis> resultados,
+            java.util.function.Function<Main.ResultadoAnalisis, JComponent> crearPanel) {
+        pestanas.removeAll();
+        int totalTokens = 0, totalErrores = 0;
+        for (Main.ResultadoAnalisis resultado : resultados) {
+            totalTokens += tokensSinEOF(resultado.lexico.getTokens()).size();
+            totalErrores += crearErrores(resultado).size();
+            String titulo = (resultado.abortadoPorDependencia ? "⚠ " : "") + resultado.archivo.getFileName();
+            pestanas.addTab(titulo, crearPanel.apply(resultado));
+            if (resultado.abortadoPorDependencia) pestanas.setForegroundAt(pestanas.getTabCount() - 1, Color.BLACK);
+        }
+        return new ResumenResultados(totalTokens, totalErrores);
+    }
+
+    static final class ResumenResultados {
+        final int tokens;
+        final int errores;
+        ResumenResultados(int tokens, int errores) { this.tokens = tokens; this.errores = errores; }
     }
 
     private JComponent crearPanelArchivo(Main.ResultadoAnalisis resultado, List<Token> tokensVisibles) {
@@ -406,38 +396,59 @@ class AnalizadorLexicoUI extends JFrame {
         List<ErrorFila> errores = crearErrores(resultado);
         JTable tablaTokens = crearTablaTokens(tokensVisibles);
         JTable tablaErrores = crearTablaErrores(errores);
+        NavegacionErrores.conectar(tablaErrores, fila -> irAlError(resultado, errores.get(fila)));
 
         JTabbedPane vistasArchivo = new JTabbedPane();
         vistasArchivo.addTab("Tokens", crearScrollConTitulo("Lista de tokens", tablaTokens));
         vistasArchivo.addTab("Errores (" + errores.size() + ")", crearPanelErrores(tablaErrores, errores.size()));
-        vistasArchivo.addTab("Arbol sintactico", crearPanelArbol(resultado, false));
-        vistasArchivo.addTab("Arbol semantico", crearPanelArbol(resultado, true));
-        vistasArchivo.addTab("Tabla simbolos", crearPanelTablaSimbolos(resultado));
-        vistasArchivo.addTab("Gramatica", crearPanelGramatica());
-        vistasArchivo.addTab("Codigo", crearPanelCodigo(resultado.source, errores));
+        vistasArchivo.addTab("AST sintáctico", crearPanelArbol(resultado, false));
+        vistasArchivo.addTab("AST semántico", crearPanelArbol(resultado, true));
+        vistasArchivo.addTab("Tabla de símbolos", crearPanelTablaSimbolos(resultado));
+        vistasArchivo.addTab("Gramática", crearPanelGramatica());
+        vistasArchivo.addTab("Código", crearPanelCodigo(resultado.source, errores));
         vistasArchivo.addTab("Reporte", crearPanelReporte(resultado, errores));
 
+        if (resultado.abortadoPorDependencia) {
+            JLabel aviso = new JLabel("Dependencias con errores: se muestran los resultados disponibles; el proyecto no es válido.");
+            aviso.setForeground(Color.BLACK);
+            panel.add(aviso, BorderLayout.NORTH);
+        }
         panel.add(vistasArchivo, BorderLayout.CENTER);
+        EstiloInterfaz.aplicar(panel);
         return panel;
+    }
+
+    private void irAlError(Main.ResultadoAnalisis resultado, ErrorFila error) {
+        if (error.linea < 1) {
+            JOptionPane.showMessageDialog(this, "Este diagnóstico no tiene una ubicación en el código.");
+            return;
+        }
+        Path ruta = resultado.archivo.toAbsolutePath().normalize();
+        boolean mismoDocumento = java.util.Objects.equals(ruta, editor.getArchivo())
+                || (editor.getArchivo() == null && archivoAnalizado == null
+                    && !ultimosResultados.isEmpty() && resultado == ultimosResultados.get(0));
+        if (!mismoDocumento) {
+            if (!confirmarCambiosPendientes()) return;
+            cargarArchivo(ruta);
+            if (!java.util.Objects.equals(ruta, editor.getArchivo())) return;
+        }
+        if (!resultado.source.equals(editor.getTexto())) {
+            JOptionPane.showMessageDialog(this,
+                    "El código cambió desde el análisis. La ubicación del error puede estar desactualizada.");
+            return;
+        }
+        if (resultadosAmpliados) alternarVistaResultados();
+        espacioTrabajo.setSelectedIndex(0);
+        editor.irAUbicacion(error.linea, error.columna);
     }
 
     private JComponent crearPanelArbol(Main.ResultadoAnalisis resultado, boolean semantico) {
         if (resultado.sintactico == null || resultado.sintactico.getArbol() == null) {
-            return new JLabel(" El analisis sintactico se omite si existen errores lexicos.");
+            return new JLabel(" El análisis sintáctico se omite si existen errores léxicos.");
         }
 
-        JTree arbol = new JTree(crearNodoSwing(resultado.sintactico.getArbol(), semantico));
-        arbol.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        for (int i = 0; i < arbol.getRowCount(); i++) {
-            arbol.expandRow(i);
-        }
-        JPanel panel = new JPanel(new BorderLayout(0, 8));
-        String aviso = resultado.sintactico.hasErrors()
-                ? "Vista parcial: los fragmentos con sintaxis incompleta se omiten en semántica."
-                : "Las acciones aparecen como hijos de cada nodo.";
-        panel.add(new JLabel(aviso), BorderLayout.NORTH);
-        panel.add(new JScrollPane(arbol), BorderLayout.CENTER);
-        return panel;
+        return new VisorAst(resultado.sintactico.getArbol(), semantico,
+                resultado.source, resultado.sintactico.hasErrors());
     }
 
     static DefaultMutableTreeNode crearNodoSwing(NodoArbolSintactico nodo, boolean semantico) {
@@ -455,7 +466,7 @@ class AnalizadorLexicoUI extends JFrame {
         JTextArea reporte = new JTextArea(construirReporteArchivo(resultado, errores));
         reporte.setEditable(false);
         reporte.setFont(new Font("Consolas", Font.PLAIN, 13));
-        reporte.setBackground(new Color(248, 250, 252));
+        reporte.setBackground(new Color(250, 250, 250));
         reporte.setCaretPosition(0);
         return new JScrollPane(reporte);
     }
@@ -483,15 +494,15 @@ class AnalizadorLexicoUI extends JFrame {
         }
 
         if (resultado.sintactico != null && resultado.sintactico.getArbol() != null) {
-            sb.append("ARBOL SINTACTICO CON ACCIONES").append(System.lineSeparator());
+            sb.append("ÁRBOL SINTÁCTICO CON ACCIONES").append(System.lineSeparator());
             sb.append(resultado.sintactico.getArbol().imprimirConAcciones()).append(System.lineSeparator());
             if (resultado.semantico != null) {
-                sb.append("ARBOL SEMANTICO").append(System.lineSeparator());
+                sb.append("ÁRBOL SEMÁNTICO").append(System.lineSeparator());
                 sb.append(resultado.sintactico.getArbol().imprimirSemantico()).append(System.lineSeparator());
             }
 
             if (!resultado.tablaSimbolos().isEmpty()) {
-                sb.append("TABLA DE SIMBOLOS").append(System.lineSeparator());
+                sb.append("TABLA DE SÍMBOLOS").append(System.lineSeparator());
                 for (EntradaTablaSimbolos s : resultado.tablaSimbolos()) {
                     sb.append(String.format("%-18s %-14s %-12s L:%d C:%d%n",
                             s.nombre, s.tipo, s.rol, s.linea, s.columna));
@@ -504,13 +515,13 @@ class AnalizadorLexicoUI extends JFrame {
 
     private JComponent crearPanelTablaSimbolos(Main.ResultadoAnalisis resultado) {
         if (resultado.sintactico == null) {
-            return new JLabel(" No hay tabla de simbolos disponible.");
+            return new JLabel(" No hay tabla de símbolos disponible.");
         }
 
         JTable tabla = new JTable(new SimboloTableModel(resultado.tablaSimbolos()));
         configurarTablaBase(tabla);
         ajustarColumnas(tabla, 220, 120, 130, 80, 80);
-        return crearScrollConTitulo("Simbolos semanticos y ambitos persistentes", tabla);
+        return crearScrollConTitulo("Símbolos semánticos y ámbitos persistentes", tabla);
     }
 
     private JComponent crearPanelGramatica() {
@@ -522,7 +533,7 @@ class AnalizadorLexicoUI extends JFrame {
         JTextArea producciones = new JTextArea(String.join(System.lineSeparator(), gramatica.getProducciones()));
         producciones.setEditable(false);
         producciones.setFont(new Font("Consolas", Font.PLAIN, 13));
-        producciones.setBackground(new Color(248, 250, 252));
+        producciones.setBackground(new Color(250, 250, 250));
         producciones.setCaretPosition(0);
 
         JTabbedPane pestañasGramatica = new JTabbedPane();
@@ -583,7 +594,7 @@ class AnalizadorLexicoUI extends JFrame {
         try {
             for (int i = 0; i < lineas.length; i++) {
                 SimpleAttributeSet estilo = new SimpleAttributeSet();
-                if (lineasError.contains(i + 1)) StyleConstants.setBackground(estilo, new Color(254, 226, 226));
+                if (lineasError.contains(i + 1)) StyleConstants.setBackground(estilo, new Color(230, 230, 230));
                 documento.insertString(documento.getLength(), String.format("%4d | %s%n", i + 1, lineas[i]), estilo);
             }
         } catch (BadLocationException ignored) {}
@@ -599,25 +610,113 @@ class AnalizadorLexicoUI extends JFrame {
         pestanas.removeAll();
         ultimosResultados.clear();
         guardarReporteButton.setEnabled(false);
-        pestanas.addTab("Inicio", new JLabel(" Abre un archivo para comenzar."));
+        revisionAnalizada = -1;
+        archivosValor.setText("0"); tokensValor.setText("0"); erroresValor.setText("0");
+        if (espacioTrabajo.getTabCount() > 1) espacioTrabajo.setTitleAt(1, "Resultados");
+        pestanas.addTab("Inicio", new JLabel(" Escribe o abre código en el editor."));
+    }
+
+    private void cargarArchivo(Path ruta) {
+        try {
+            String fuente = Files.readString(ruta, StandardCharsets.UTF_8);
+            solicitudAnalisis++;
+            analizando = false;
+            limpiarResultados();
+            editor.cargar(ruta, fuente);
+            espacioTrabajo.setSelectedIndex(0);
+            estadoLabel.setText("Archivo cargado. Edita el código.");
+            editor.enfocar();
+        } catch (IOException e) { mostrarErrorLectura(e); }
+    }
+
+    private void nuevoArchivo() {
+        if (!confirmarCambiosPendientes()) return;
+        solicitudAnalisis++;
+        analizando = false;
+        limpiarResultados();
+        editor.cargar(null, "");
+        espacioTrabajo.setSelectedIndex(0);
+        estadoLabel.setText("Documento nuevo. Escribe código.");
+        editor.enfocar();
+    }
+
+    private void atajoGlobal(String tecla, Runnable accion) {
+        getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(tecla), tecla);
+        getRootPane().getActionMap().put(tecla, new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent e) { accion.run(); }
+        });
+    }
+
+    private boolean guardarCodigo(boolean como) {
+        Path destino = editor.getArchivo();
+        if (como || destino == null) {
+            JFileChooser selector = new JFileChooser();
+            EstiloInterfaz.aplicar(selector);
+            selector.setDialogTitle("Guardar código fuente");
+            selector.setSelectedFile(destino == null ? new java.io.File("programa.txt") : destino.toFile());
+            selector.setFileFilter(new FileNameExtensionFilter("Código fuente (.txt, .java, .cpp)", "txt", "java", "cpp"));
+            if (selector.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return false;
+            destino = selector.getSelectedFile().toPath().toAbsolutePath().normalize();
+            if (Files.exists(destino) && !destino.equals(editor.getArchivo())
+                    && JOptionPane.showConfirmDialog(this, "El archivo ya existe. ¿Deseas reemplazarlo?", "Guardar código",
+                            JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) return false;
+        }
+        try {
+            editor.guardar(destino);
+            estadoLabel.setForeground(Color.BLACK);
+            estadoLabel.setText("Código guardado en " + destino + ".");
+            return true;
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "No se pudo guardar el código:\n" + e.getMessage(), "Error al guardar", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+    }
+
+    private boolean confirmarCambiosPendientes() {
+        if (!editor.tieneCambios()) return true;
+        int respuesta = JOptionPane.showOptionDialog(this, "El documento tiene cambios sin guardar.", "Cambios pendientes",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null,
+                new String[] { "Guardar", "Descartar", "Cancelar" }, "Guardar");
+        return respuesta == 0 ? guardarCodigo(false) : respuesta == 1;
+    }
+
+    private void actualizarEstadoEditor() {
+        archivoActual = editor.getArchivo();
+        setTitle((editor.tieneCambios() ? "* " : "") + (archivoActual == null ? "Sin título" : archivoActual.getFileName()) + " — Analizador léxico y sintáctico");
+        analizarButton.setEnabled(!analizando);
+        validarImportsCheck.setEnabled(archivoActual != null);
+        validarImportsCheck.setToolTipText(archivoActual == null ? "Guarda el documento para resolver imports relativos a su carpeta."
+                : "Busca archivos importados en la carpeta del documento.");
+        if (revisionAnalizada >= 0 && (revisionAnalizada != editor.getRevision()
+                || !java.util.Objects.equals(archivoAnalizado, archivoActual))) marcarResultadosDesactualizados();
+    }
+
+    private void marcarResultadosDesactualizados() {
+        if (ultimosResultados.isEmpty()) return;
+        espacioTrabajo.setTitleAt(1, "Resultados (desactualizados)");
+        guardarReporteButton.setEnabled(false);
+        if (!analizando) {
+            estadoLabel.setForeground(Color.BLACK);
+            estadoLabel.setText("El editor cambió. Los resultados corresponden al análisis anterior.");
+        }
     }
 
     private void mostrarErrorLectura(Exception e) {
         JOptionPane.showMessageDialog(this, "Error al analizar: " + e.getMessage());
     }
 
-    private List<Token> tokensSinEOF(List<Token> tokens) {
+    private static List<Token> tokensSinEOF(List<Token> tokens) {
         List<Token> visibles = new ArrayList<>();
         for (Token t : tokens) if (t.tipo != tipoToken.EOF) visibles.add(t);
         return visibles;
     }
 
-    private List<ErrorFila> crearErrores(Main.ResultadoAnalisis resultado) {
+    static List<ErrorFila> crearErrores(Main.ResultadoAnalisis resultado) {
         List<ErrorFila> errores = new ArrayList<>();
-        for (String ei : resultado.erroresImport) errores.add(new ErrorFila("IMPORT", "-", "-", ei, "-", -1));
+        for (String ei : resultado.erroresImport) errores.add(new ErrorFila("IMPORT", "-", "-", ei, "-", -1, -1));
         for (compiladorErrores e : resultado.diagnosticos()) {
             errores.add(new ErrorFila(e.TIPOERROR.toString(), "L:" + e.linea + " C:" + e.columna,
-                    e.lexema, e.mensaje, e.pista, e.linea));
+                    e.lexema, e.mensaje, e.pista, e.linea, e.columna));
         }
         return errores;
     }
@@ -629,15 +728,6 @@ class AnalizadorLexicoUI extends JFrame {
     }
 
     // --- CLASES INTERNAS DE SOPORTE ---
-    private static class GradientPanel extends JPanel {
-        @Override protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setPaint(new GradientPaint(0, 0, AZUL_OSCURO, getWidth(), getHeight(), AZUL));
-            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
-            g2.dispose();
-        }
-    }
-
     private static class TokenTableModel extends AbstractTableModel {
         private final List<Token> tokens;
         TokenTableModel(List<Token> tokens) { this.tokens = tokens; }
@@ -646,7 +736,7 @@ class AnalizadorLexicoUI extends JFrame {
         @Override public String getColumnName(int c) {
             switch(c) {
                 case 0: return "#"; case 1: return "Tipo"; case 2: return "Lexema";
-                case 3: return "Linea"; case 4: return "Columna"; default: return "";
+                case 3: return "Línea"; case 4: return "Columna"; default: return "";
             }
         }
         @Override public Object getValueAt(int r, int c) {
@@ -665,7 +755,7 @@ class AnalizadorLexicoUI extends JFrame {
         @Override public int getColumnCount() { return 5; }
         @Override public String getColumnName(int c) {
             switch(c) {
-                case 0: return "Tipo"; case 1: return "Ubicacion"; case 2: return "Lexema";
+                case 0: return "Tipo"; case 1: return "Ubicación"; case 2: return "Lexema";
                 case 3: return "Mensaje"; case 4: return "Sugerencia"; default: return "";
             }
         }
@@ -686,7 +776,7 @@ class AnalizadorLexicoUI extends JFrame {
         @Override public String getColumnName(int c) {
             switch(c) {
                 case 0: return "Nombre"; case 1: return "Tipo"; case 2: return "Rol";
-                case 3: return "Linea"; case 4: return "Columna"; default: return "";
+                case 3: return "Línea"; case 4: return "Columna"; default: return "";
             }
         }
         @Override public Object getValueAt(int r, int c) {
@@ -705,7 +795,7 @@ class AnalizadorLexicoUI extends JFrame {
         @Override public int getColumnCount() { return 3; }
         @Override public String getColumnName(int c) {
             switch(c) {
-                case 0: return "Simbolo"; case 1: return "Conjunto"; case 2: return "Descripcion";
+                case 0: return "Símbolo"; case 1: return "Conjunto"; case 2: return "Descripción";
                 default: return "";
             }
         }
@@ -715,16 +805,16 @@ class AnalizadorLexicoUI extends JFrame {
     }
 
     private static class ErrorFila {
-        String tipo, ubicacion, lexema, mensaje, sugerencia; int linea;
-        ErrorFila(String t, String u, String lx, String m, String s, int l) {
-            tipo=t; ubicacion=u; lexema=lx; mensaje=m; sugerencia=s; linea=l;
+        String tipo, ubicacion, lexema, mensaje, sugerencia; int linea, columna;
+        ErrorFila(String t, String u, String lx, String m, String s, int l, int c) {
+            tipo=t; ubicacion=u; lexema=lx; mensaje=m; sugerencia=s; linea=l; columna=c;
         }
     }
 
     private static class TokenRenderer extends DefaultTableCellRenderer {
         @Override public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
             Component cp = super.getTableCellRendererComponent(t, v, s, f, r, c);
-            if (!s) cp.setBackground(new Color(248, 250, 252));
+            if (!s) cp.setBackground(new Color(250, 250, 250));
             return cp;
         }
     }
@@ -733,7 +823,8 @@ class AnalizadorLexicoUI extends JFrame {
         @Override public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
             setText(v == null ? "" : v.toString());
             setLineWrap(true); setWrapStyleWord(true);
-            setBackground(s ? t.getSelectionBackground() : new Color(254, 242, 242));
+            setForeground(Color.BLACK);
+            setBackground(s ? t.getSelectionBackground() : Color.WHITE);
             return this;
         }
     }

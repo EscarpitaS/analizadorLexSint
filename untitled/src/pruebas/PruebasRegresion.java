@@ -22,6 +22,12 @@ public class PruebasRegresion {
         PruebasPresentacionSemantica.ejecutar();
         PruebasConformidadGramatica.ejecutar();
         PruebasAstDecorado.ejecutar();
+        PruebasEstadosAst.ejecutar();
+        PruebasEditorCodigo.ejecutar();
+        PruebasNavegacionErrores.ejecutar();
+        PruebasAutocompletado.ejecutar();
+        PruebasComposicionSemantica.ejecutar();
+        PruebasEntradasMalformadas.ejecutar();
         acepta("programa minimo", "{ public class Main { public main() { } } }");
         conservaUbicacionFuente();
         acepta("sufijos y expresiones", "{ public class Main { public main() { "

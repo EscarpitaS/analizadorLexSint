@@ -1280,6 +1280,7 @@ final class Semantico {
     }
 
     private void error(NodoArbolSintactico nodo, String mensaje, String pista) {
+        nodo.registrarErrorSemantico(mensaje);
         nodo.accion("Error semántico: " + mensaje);
         registrarError(origenes.get(nodo), new compiladorErrores(compiladorErrores.TIPO_ERROR.SEMANTICO,
                 nodo.getLinea(), nodo.getColumna(), nodo.getValor() == null ? nodo.getNombre() : nodo.getValor(),
@@ -1287,7 +1288,10 @@ final class Semantico {
     }
 
     private void error(Simbolo simbolo, String mensaje, String pista) {
-        if (simbolo.nodoDeclaracion != null) simbolo.nodoDeclaracion.accion("Error semántico: " + mensaje);
+        if (simbolo.nodoDeclaracion != null) {
+            simbolo.nodoDeclaracion.registrarErrorSemantico(mensaje);
+            simbolo.nodoDeclaracion.accion("Error semántico: " + mensaje);
+        }
         registrarError(simbolo.origen, new compiladorErrores(compiladorErrores.TIPO_ERROR.SEMANTICO,
                 simbolo.linea, simbolo.columna, simbolo.nombre, mensaje, pista));
     }

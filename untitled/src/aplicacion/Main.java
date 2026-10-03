@@ -74,9 +74,15 @@ public class Main {
 
     static List<ResultadoAnalisis> analizarProyecto(Path archivoInicial,
                                                     boolean validarImportsLocales) throws IOException {
+        return analizarProyecto(archivoInicial, null, validarImportsLocales);
+    }
+
+    /** Analiza una instantánea del editor sin escribirla en el archivo principal. */
+    static List<ResultadoAnalisis> analizarProyecto(Path archivoInicial, String fuenteEditor,
+                                                    boolean validarImportsLocales) throws IOException {
         List<ResultadoAnalisis> resultados = new ArrayList<>();
         Set<Path> visitados = new LinkedHashSet<>();
-        analizarArchivoConImports(archivoInicial, resultados, visitados, validarImportsLocales);
+        analizarArchivoConImports(archivoInicial, resultados, visitados, validarImportsLocales, fuenteEditor);
         Map<String, NodoArbolSintactico> unidades = new LinkedHashMap<>();
         for (ResultadoAnalisis resultado : resultados) {
             if (resultado.sintactico != null && resultado.sintactico.getArbol() != null) {
@@ -127,10 +133,15 @@ public class Main {
                                              List<ResultadoAnalisis> resultados,
                                              Set<Path> visitados,
                                              boolean validarImportsLocales) throws IOException {
+        return analizarArchivoConImports(archivo, resultados, visitados, validarImportsLocales, null);
+    }
+
+    private static boolean analizarArchivoConImports(Path archivo, List<ResultadoAnalisis> resultados,
+            Set<Path> visitados, boolean validarImportsLocales, String fuenteEditor) throws IOException {
         Path normalizado = archivo.toAbsolutePath().normalize();
         if (!visitados.add(normalizado)) return true;
 
-        String source = Files.readString(normalizado);
+        String source = fuenteEditor == null ? Files.readString(normalizado) : fuenteEditor;
 
         // Primero se valida el archivo completo. Solo un import aceptado por
         // la CFG puede convertirse después en una dependencia local.
@@ -160,11 +171,10 @@ public class Main {
         if (validarImportsLocales) {
             // Paso B: Resolver y validar cada dependencia
             for (Importacion imp : importaciones) {
-            if (esImportExterno(imp.nombre)) {
+            Path rutaImportado = resolverImport(normalizado, imp.nombre);
+            if (rutaImportado == null && esImportExterno(imp.nombre)) {
                 continue;
             }
-
-            Path rutaImportado = resolverImport(normalizado, imp.nombre);
 
             if (rutaImportado == null) {
                 resultadoActual.erroresImport.add(String.format(
@@ -224,6 +234,10 @@ public class Main {
             Path candidato = carpeta.resolve(nombreRuta + ext).normalize();
             if (Files.isRegularFile(candidato)) return candidato;
         }
+
+        // Los archivos locales tienen prioridad incluso bajo prefijos habituales
+        // de bibliotecas. Si no existen, esos imports siguen siendo externos.
+        if (esImportExterno(nombreImport)) return null;
 
         if (!GraphicsEnvironment.isHeadless()) {
             int resp = JOptionPane.showConfirmDialog(null,
