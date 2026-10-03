@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 b=Path(__file__).resolve().parent.parent
 doc=(b/'GRAMATICA_CANONICA.md').read_text()
-java=(b/'untitled/src/Gramatica.java').read_text()
+java=(b/'untitled/src/gramatica/Gramatica.java').read_text()
 def nombre(x):
  if x == 'SentenciaTrasPrimerId': return 'SENTENCIA_TRAS_ID'
  return re.sub(r'(?<=[a-z])(?=[A-Z])', '_', x).upper()

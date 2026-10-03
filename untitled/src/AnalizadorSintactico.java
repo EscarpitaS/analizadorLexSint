@@ -125,6 +125,17 @@ class AnalizadorSintactico {
 
     private NodoArbolSintactico sentenciaInterna() {
         if (coincide("if")) return condicional();
+        if (coincide("else")) {
+            Token inesperado = anterior();
+            error(inesperado, "Un 'else' debe formar parte de un 'if'.",
+                    "Agrega el if correspondiente o elimina esta rama.");
+            NodoArbolSintactico invalido = nodo("ERROR_ELSE", inesperado);
+            // Consume únicamente la rama huérfana: su '}' no cierra el método.
+            if (coincide("if")) invalido.agregar(condicional());
+            else if (verificar("{")) invalido.agregar(bloque());
+            else sincronizar();
+            return invalido;
+        }
         if (coincide("repeat")) return cicloRepeat();
         if (coincide("while")) return cicloWhile();
         if (coincide("Exist")) return exist();
@@ -137,7 +148,7 @@ class AnalizadorSintactico {
         error(token, "Sentencia no reconocida.",
                 "Se esperaba declaracion, asignacion, llamada, condicion, ciclo o return.");
         sincronizar();
-        return new NodoArbolSintactico("ERROR", token.lexema);
+        return nodo("ERROR", token);
     }
 
     private NodoArbolSintactico bloque() {
@@ -269,7 +280,7 @@ class AnalizadorSintactico {
         error(inesperado, "Miembro de clase no reconocido.",
                 "Se esperaba un campo, un metodo o 'public main()'.");
         sincronizarMiembroClase();
-        return new NodoArbolSintactico("ERROR", inesperado.lexema);
+        return nodo("ERROR", inesperado);
     }
 
     /**
@@ -436,7 +447,7 @@ class AnalizadorSintactico {
         }
 
         terminarSentencia("Se esperaba una asignacion o ';' despues del identificador.");
-        return new NodoArbolSintactico("ERROR", nombre.lexema);
+        return nodo("ERROR", nombre);
     }
 
     private NodoArbolSintactico condicional() {
@@ -903,21 +914,5 @@ class AnalizadorSintactico {
 
     List<EntradaTablaSimbolos> getTablaSimbolos() {
         return Collections.unmodifiableList(tablaSimbolos);
-    }
-}
-
-class EntradaTablaSimbolos {
-    final String nombre;
-    final String tipo;
-    final String rol;
-    final int linea;
-    final int columna;
-
-    EntradaTablaSimbolos(String nombre, String tipo, String rol, int linea, int columna) {
-        this.nombre = nombre;
-        this.tipo = tipo;
-        this.rol = rol;
-        this.linea = linea;
-        this.columna = columna;
     }
 }

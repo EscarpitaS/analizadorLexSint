@@ -1,70 +1,5 @@
 import java.util.*;
 
-enum tipoToken {
-    PALABRA_CLAVE, IDENTIFICADOR, ENTERO, FLOAT,
-    STRING, OPERADOR, DELIMITADOR, COMENTARIO,
-    DESCONOCIDO, EOF
-}
-
-class Token {
-    public final tipoToken tipo;
-    public final String lexema;
-    public final int linea;
-    public final int columna;
-
-    public Token(tipoToken tipo, String lexema, int linea, int columna) {
-        this.tipo = tipo;
-        this.lexema = lexema;
-        this.linea = linea;
-        this.columna = columna;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("[%-12s] %-24s (linea %d, col %d)",
-                tipo, '"' + lexema + '"', linea, columna);
-    }
-}
-
-class compiladorErrores {
-    public enum TIPO_ERROR { LEXICAL, SINTACTICO, SEMANTICO }
-    public final TIPO_ERROR TIPOERROR;
-    public final int linea;
-    public final int columna;
-    public final String lexema;
-    public final String mensaje;
-    public final String pista;
-
-    public compiladorErrores(TIPO_ERROR TIPOERROR, int linea, int columna,
-                             String lexema, String mensaje, String pista) {
-        this.TIPOERROR = TIPOERROR;
-        this.linea = linea;
-        this.columna = columna;
-        this.lexema = lexema;
-        this.mensaje = mensaje;
-        this.pista = pista;
-    }
-
-    @Override
-    public String toString() {
-        String base = String.format("[%s] Linea %d, col %d -- %s '%s'",
-                TIPOERROR, linea, columna, mensaje, lexema);
-        return pista != null ? base + "\n         Sugerencia: " + pista : base;
-    }
-}
-
-class Importacion {
-    public final String nombre;
-    public final int linea;
-    public final int columna;
-
-    public Importacion(String nombre, int linea, int columna) {
-        this.nombre = nombre;
-        this.linea = linea;
-        this.columna = columna;
-    }
-}
-
 public class Lexico {
 
     // 26 categorias del alfabeto
@@ -160,6 +95,10 @@ public class Lexico {
             "not","true","false",
             "null"
     ));
+
+    /** El editor comparte el vocabulario del lexer, incluidas sus mayúsculas. */
+    static boolean esPalabraClave(String texto) { return KEYWORDS.contains(texto); }
+    static Set<String> palabrasClave() { return Collections.unmodifiableSet(KEYWORDS); }
 
     // estado interno
     private final String              source;
