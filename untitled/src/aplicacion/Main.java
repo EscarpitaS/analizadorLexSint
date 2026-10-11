@@ -171,6 +171,7 @@ public class Main {
         if (validarImportsLocales) {
             // Paso B: Resolver y validar cada dependencia
             for (Importacion imp : importaciones) {
+            if ("runtime.Consola".equals(imp.nombre)) continue;
             Path rutaImportado = resolverImport(normalizado, imp.nombre);
             if (rutaImportado == null && esImportExterno(imp.nombre)) {
                 continue;

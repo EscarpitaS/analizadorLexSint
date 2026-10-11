@@ -1,0 +1,30 @@
+import runtime.Consola;
+{
+    public class Base {
+        public int antes = valor();
+        public int valor() { return 1; }
+    }
+    public class Hija extends Base {
+        public int despues = 7;
+        public int valor() { return despues; }
+    }
+    public class Programa {
+        public main() {
+            Consola consola = new Consola();
+            Hija hija = new Hija();
+            Base base = hija;
+            consola.imprimirLinea(hija.antes);
+            consola.imprimirLinea(base.valor());
+
+            list<int> numeros = [1, 2, 3];
+            list<int> alias = numeros;
+            alias[1] += 5;
+            consola.imprimirLinea(numeros);
+            repeat each (float n in numeros) {
+                consola.imprimirLinea(n + 0.5);
+            }
+            list<Base> objetos = [hija];
+            Exist(objetos) { consola.imprimirLinea(objetos); }
+        }
+    }
+}

@@ -104,6 +104,7 @@ final class Semantico {
         if (arbol == null) return;
         limpiarTipos(arbol);
         arbol.enlazarAmbito(contextoGlobal.ambitoActual);
+        registrarConsola(arbol);
 
         List<NodoArbolSintactico> nodosClase = new ArrayList<>();
         recolectarClases(arbol, nodosClase);
@@ -216,7 +217,7 @@ final class Semantico {
             for (NodoArbolSintactico hijo : h) convertir(nodo, hijo, tipo.elemento);
         } else if ("LLAMADA".equals(nodo.getNombre()) && simbolo != null) {
             NodoArbolSintactico args = buscarHijo(nodo, "ARGUMENTOS");
-            if (args != null) for (int i = 0; i < args.getHijos().size(); i++) convertir(args, args.getHijos().get(i), simbolo.parametros.get(i));
+            if (args != null && simbolo.runtime == null) for (int i = 0; i < args.getHijos().size(); i++) convertir(args, args.getHijos().get(i), simbolo.parametros.get(i));
         } else if ("EXPRESION".equals(nodo.getNombre()) && h.size() == 2 && tipo != null && !tipo.equals(ERROR)) {
             Tipo a = h.get(0).getTipoSemantico(), b = h.get(1).getTipoSemantico();
             Tipo comun = null;
@@ -351,6 +352,9 @@ final class Semantico {
             return;
         }
         ClaseInfo base = clases.get(clase.nombreBase);
+        if (base != null && base.simbolo.consolaIntegrada) {
+            error(clase.simbolo, "Consola integrada no admite herencia.", "Usa una instancia de Consola."); return;
+        }
         if (base == null) {
             error(clase.simbolo, "No existe la clase base '" + clase.nombreBase + "'.",
                     "Declara o importa la clase antes de extenderla.");
@@ -904,6 +908,8 @@ final class Semantico {
             error(destino, "La expresión no designa un método invocable.", "Usa nombre(argumentos) u objeto.metodo(argumentos).");
             destinoValido = false;
         }
+        if (destinoValido && receptora != null && receptora.simbolo.consolaIntegrada)
+            return tipoLlamadaConsola(llamada, destino, receptora, contexto);
         List<Tipo> argumentos = new ArrayList<>();
         List<NodoArbolSintactico> nodosArgumentos = new ArrayList<>();
         for (int i = 1; i < llamada.getHijos().size(); i++) {
@@ -952,6 +958,49 @@ final class Semantico {
                 : "La llamada a '" + nombre + "' es ambigua.",
                 "Revisa la visibilidad, cantidad y tipos de los argumentos.");
         return ERROR;
+    }
+
+    private void registrarConsola(NodoArbolSintactico arbol) {
+        if (!importaConsola(arbol)) return;
+        Simbolo tipo = new Simbolo("Consola", clase("Consola"), RolSimbolo.CLASE,
+                Visibilidad.PUBLICO, Mutabilidad.INMUTABLE, 0, 0, Collections.emptyList());
+        tipo.consolaIntegrada = true;
+        contextoGlobal.ambitoActual.declarar(tipo);
+        ClaseInfo info = new ClaseInfo(tipo, contextoGlobal.ambitoActual, null);
+        clases.put("Consola", info);
+    }
+    private boolean importaConsola(NodoArbolSintactico nodo) {
+        if ("IMPORTACION".equals(nodo.getNombre())) {
+            NodoArbolSintactico ruta = buscarHijo(nodo, "RUTA");
+            return ruta != null && "runtime.Consola".equals(ruta.getValor());
+        }
+        for (NodoArbolSintactico h : nodo.getHijos()) if (importaConsola(h)) return true;
+        return false;
+    }
+    private boolean imprimible(Tipo tipo, boolean elemento) {
+        if (tipo.equals(ERROR) || tipo.equals(VOID) || tipo.equals(VACIO)) return false;
+        if (tipo.equals(NULL)) return !elemento;
+        return tipo.categoria != CategoriaTipo.LISTA || imprimible(tipo.elemento, true);
+    }
+    private Tipo tipoLlamadaConsola(NodoArbolSintactico llamada, NodoArbolSintactico destino,
+            ClaseInfo receptora, Contexto contexto) {
+        RuntimeConsolaId id = RuntimeConsolaId.desdeNombre(destino.getValor());
+        NodoArbolSintactico args = buscarHijo(llamada, "ARGUMENTOS");
+        List<Tipo> tipos = new ArrayList<>();
+        if (args != null) for (NodoArbolSintactico a : args.getHijos()) tipos.add(tipoDe(a, contexto));
+        boolean aridad = id != null && (id == RuntimeConsolaId.CONSOLA_IMPRIMIR_LINEA
+                ? tipos.size() <= 1 : tipos.size() == (id.imprime() ? 1 : 0));
+        if (!aridad || id.imprime() && !tipos.isEmpty() && !imprimible(tipos.get(0), false)) {
+            error(llamada, "Firma de Consola incompatible: " + destino.getValor() + ".",
+                    "Comprueba nombre, aridad y valor imprimible."); return ERROR;
+        }
+        Simbolo simbolo = Simbolo.metodo(destino.getValor(), id.retornoSemantico(), Visibilidad.PUBLICO,
+                tipos, llamada.getLinea(), llamada.getColumna());
+        simbolo.runtime = id; simbolo.propietaria = receptora;
+        llamada.enlazarSimbolo(simbolo); destino.enlazarSimbolo(simbolo); destino.anotarTipoSemantico(simbolo.tipo);
+        llamada.anotarReceptor(receptora.simbolo.tipo, destino.getHijos().get(0));
+        llamada.anotarDespacho(NodoArbolSintactico.Despacho.RUNTIME);
+        return simbolo.tipo;
     }
 
     private boolean contieneErrorPreparado(NodoArbolSintactico nodo) {
@@ -1325,6 +1374,8 @@ final class Semantico {
     /** Símbolo declarado; conserva información suficiente para las dos pasadas. */
     static final class Simbolo {
         final String nombre;
+        RuntimeConsolaId runtime;
+        boolean consolaIntegrada;
         Tipo tipo;
         final RolSimbolo rol;
         final Visibilidad visibilidad;

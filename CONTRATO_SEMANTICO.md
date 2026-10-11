@@ -169,3 +169,17 @@ esenciales del AST decorado. Los consumidores de generación solo deben aceptar
 el AST validado; el árbol de diagnóstico puede contener datos parciales. Reanalizar
 un AST reemplaza sus decoraciones: debe consumirse con el resultado y la tabla de
 ámbitos de su análisis más reciente.
+
+## Extensión de biblioteca integrada
+
+[ESPECIFICACION_RUNTIME_CONSOLA.md](ESPECIFICACION_RUNTIME_CONSOLA.md) define
+una clase integrada Consola, habilitada mediante el import exacto
+`runtime.Consola`. Su registro es independiente de la búsqueda de imports
+locales. Sus métodos públicos se identifican mediante símbolos intrínsecos
+y un despacho RUNTIME, sin fabricar cuerpos vacíos ni firmas de biblioteca Java.
+
+La implementación comprueba conflictos con clases del usuario, clase
+cerrada a herencia, aridades, valores imprimibles, tipos de retorno y receptor.
+Los métodos del usuario con los mismos nombres mantienen su resolución habitual.
+El frontend y las IR de referencia ya implementan esta extensión (H2/H3);
+H4 aporta los helpers C nativos y puentes ABI.

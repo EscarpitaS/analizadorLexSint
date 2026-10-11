@@ -46,6 +46,31 @@ desactualizados y deshabilita su exportación hasta volver a analizar. Abrir,
 crear o cerrar un documento con cambios ofrece guardar, descartar o cancelar.
 El resaltado no añade operaciones al historial ni marca cambios sin guardar.
 
+### IR, ensamblador y ejecutable
+
+Después de analizar un proyecto válido, **Resultados → IR del proyecto** ofrece
+las vistas didácticas, triplos, tres direcciones y detalles físicos originales.
+**Resultados → ASM y ejecutable** permite elegir Linux/Windows x64 y la clase de
+entrada, ver/exportar ASM e IR del destino, ensamblar o construir un ejecutable
+nativo en una subcarpeta nueva dentro de la carpeta elegida y ejecutarlo con
+entrada/salida de consola. En **Consola**, **Entrada interactiva** permite ver
+las preguntas durante la ejecución y responder con **Enviar** o **Ctrl+Enter**.
+**Cerrar entrada** envía fin de entrada; desactiva el modo interactivo para usar
+datos preparados que se envían de una vez.
+
+Configura NASM y el compilador C/archivador del destino en **Herramientas…**.
+El runtime viene dentro del JAR; el flujo gráfico no requiere Python. Para
+Windows se exige MinGW-w64 UCRT. La ejecución desde la GUI requiere el sistema
+anfitrión del destino. Los trabajos tienen plazo/cancelación y editar invalida
+los resultados anteriores. Consulta [INTEGRACION_NATIVA_H6.md](INTEGRACION_NATIVA_H6.md)
+para el procedimiento, archivos generados y aceptación Windows pendiente.
+
+La opción **Optimizar H7** genera desde una copia optimizada de la IR: constantes,
+cálculos sin uso, simplificación de bloques y registros locales. **Comparar
+optimización** conserva ambas versiones y muestra los cuádruplos didácticos usados.
+En CLI usa `--optimizar`. Consulta [OPTIMIZACION_H7.md](OPTIMIZACION_H7.md) para
+las reglas, pruebas y límites; SSA no es necesaria para esta versión.
+
 ### Autocompletado básico
 
 El menú aparece al escribir al menos dos caracteres de una palabra. También
@@ -131,11 +156,15 @@ Las clases auxiliares se organizan por función:
 - `interfaz/`: ventana Swing, editor, autocompletado y visor AST.
 - `modelo/`: tokens, errores, importaciones, nodos AST y resultados.
 - `gramatica/`: definición de la gramática.
-- `herramientas/`: depuración del lexer.
+- `herramientas/`: depuración del lexer y CLI `CompilarIr`.
+- `intermedio/`: IR tipada y atómica, generadores, verificadores y exportadores.
+- `ensamblador/`: layout por perfil, núcleo NASM y adaptadores de plataforma.
+- `nativo/`: instantánea del proyecto, supervisión de procesos y builder usado por la GUI.
+- `runtime/`: contrato de ejecución, memoria, intérpretes y consola de referencia.
 - `pruebas/`: todas las clases de pruebas.
 
-La organización es por carpetas; las clases conservan el paquete por defecto
-y sus nombres. La compilación debe incluir recursivamente todas las fuentes.
+La organización es por carpetas; las clases del compilador conservan el paquete por defecto
+y sus nombres. Las cuatro clases de terceros usan el paquete `runtime.jdk11`. La compilación debe incluir recursivamente todas las fuentes.
 Con un JDK 11 o posterior en `PATH` o seleccionado mediante `JAVA_HOME`, ejecuta:
 
 ```sh
@@ -181,3 +210,68 @@ python3 tools/verificar_gramatica.py
 
 Los hallazgos y el alcance de la revisión están en
 [AUDITORIA_GRAMATICA.md](AUDITORIA_GRAMATICA.md).
+
+## Generación de código: H0–H5
+
+Los destinos contratados son NASM/Linux x86-64 (ELF64) y NASM/Windows x64
+(PE/COFF), con ejecutables nativos sin JVM. H5 implementa ambos perfiles y
+`--target`, con núcleo NASM compartido, adaptadores y builder por etapas. Linux
+se verifica nativamente; Windows bajo Wine, pendiente de aceptación nativa.
+Comandos y alcance en [GENERACION_NATIVA_H5.md](GENERACION_NATIVA_H5.md). Contratos en
+[CONTRATO_EJECUCION.md](CONTRATO_EJECUCION.md) y
+[CONTRATO_MULTIPLATAFORMA.md](CONTRATO_MULTIPLATAFORMA.md); modelo en
+[IR_TIPADA.md](IR_TIPADA.md).
+
+El generador convierte proyectos válidos a IR y ambos intérpretes Java ejecutan
+escalares, control, llamadas, consola, objetos, campos, herencia, inicializadores,
+despacho virtual, listas, `repeat each` y `Exist`. La CLI `CompilarIr` exporta
+por defecto cuádruplos atómicos con offsets y argumentos ABI resueltos;
+`--ir-tipada` conserva la vista por bloques. Uso, contratos y límites actuales
+en [IR_EJECUTABLE_H3.md](IR_EJECUTABLE_H3.md) e [IR_ATOMICA.md](IR_ATOMICA.md).
+
+En la interfaz, pulsa **Analizar (F5)** y abre **Resultados → IR del proyecto**.
+La vista inicial **Cuádruplos didácticos** deriva de la IR tipada existente:
+operadores españoles, variables, temporales `tN`, direcciones `dN` y etiquetas
+`LN`. Incluye **Triplos (tercias)** con referencias `(n)` y **Tres direcciones**
+para leer el flujo como instrucciones sencillas. Seleccionar una fila muestra
+su explicación. **Atómica simplificada** traduce visualmente los cuádruplos
+físicos mediante un diccionario y oculta registros/desplazamientos de pila.
+**Detalles técnicos** conserva IR física, IR tipada original y cuádruplos físicos.
+Todas las vistas admiten **Copiar IR** y **Guardar IR…**; las tablas se exportan
+como TSV UTF-8. La representación interna y la exportación CLI no cambian.
+Alcance y reglas de presentación en [IR_DIDACTICA.md](IR_DIDACTICA.md).
+La revisión de despacho, tipos, offsets y presentación, sus correcciones y
+el alcance del cierre se documentan en [AUDITORIA_IR.md](AUDITORIA_IR.md).
+La generación se realiza en segundo plano sobre la instantánea del editor y
+las dependencias analizadas. Para cargar imports locales, guarda el archivo
+y activa **Validar imports locales** antes de analizar.
+Los proyectos con errores muestran los diagnósticos y bloquean la exportación.
+Editar o cambiar la opción de imports marca la vista como desactualizada y
+desactiva copiar/guardar hasta el siguiente análisis. La exportación protege
+todos los archivos fuente del proyecto, incluidos enlaces al mismo archivo.
+Si hay varios `main`, la entrada de referencia prioriza el archivo del editor
+y luego el orden de declaración; la vista incluye todos los métodos y avisa
+de la multiplicidad. La CLI mantiene su selección explícita con `--entrada`.
+`PruebasVisorIr` verifica esta integración Swing sin requerir pantalla.
+
+La regresión integra las suites H0, H1, H2, IR atómica y `PruebasH3`, con
+resultados esperados independientes y comparación entre ambas IR.
+H4 incluye layout de datos y runtime C enlazable, con puentes ABI exportables
+mediante `--soporte-nativo`. Uso y pruebas en
+[RUNTIME_NATIVO_H4.md](RUNTIME_NATIVO_H4.md). H5 añade `CompilarIr --asm` y
+`tools/compilar_nativo.py` para generar, ensamblar y enlazar; la visualización/exportación de IR de H6 ya está integrada. Seguimiento en
+[ROADMAP_GENERACION_CODIGO.md](ROADMAP_GENERACION_CODIGO.md).
+
+## Runtime de consola
+
+[ESPECIFICACION_RUNTIME_CONSOLA.md](ESPECIFICACION_RUNTIME_CONSOLA.md) define
+`import runtime.Consola;`, impresión y lectura, rangos, EOF, UTF-8 y errores.
+El frontend, catálogo IR y adaptador Java implementan RC-1, incluidos formatos
+de listas y objetos. `tools/probar_consola.py` ejecuta 89/90 oráculos JSON;
+el caso de pipe roto real se verifica en la suite nativa H4.
+
+La ABI C y su implementación están en `runtime/nativo/`; `tools/compilar_runtime.py`
+genera bibliotecas estática/compartida. `tools/probar_runtime_nativo.py` supera
+los 90 oráculos, incluidos SIGPIPE, memoria y formatos. Su suite añade corpus
+float versionado y pruebas de puentes enlazados. Se incluyen en el JAR documentación, ejemplos,
+oráculos y licencias de OpenJDK 11 utilizado para el formato exacto de float.

@@ -12,7 +12,7 @@ class NodoArbolSintactico {
     private Semantico.Simbolo simboloResuelto;
     private Semantico.AmbitoSimbolos ambitoResuelto;
     private Semantico.ClaseInfo claseConstruida;
-    enum Despacho { NINGUNO, DIRECTO, VIRTUAL, CONSTRUCTOR }
+    enum Despacho { NINGUNO, DIRECTO, VIRTUAL, CONSTRUCTOR, RUNTIME }
     private Despacho despacho = Despacho.NINGUNO;
     private boolean inalcanzable;
     private Semantico.Tipo tipoOperacion;

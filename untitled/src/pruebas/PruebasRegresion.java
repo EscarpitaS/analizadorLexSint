@@ -28,6 +28,18 @@ public class PruebasRegresion {
         PruebasAutocompletado.ejecutar();
         PruebasComposicionSemantica.ejecutar();
         PruebasEntradasMalformadas.ejecutar();
+        PruebasContratoEjecucion.ejecutar();
+        PruebasIr.ejecutar();
+        PruebasGeneracionIr.ejecutar();
+        PruebasIrAtomica.ejecutar();
+        PruebasH3.ejecutar();
+        PruebasH4.ejecutar();
+        PruebasVisorIr.ejecutar();
+        PruebasIrDidactica.ejecutar();
+        PruebasConsistenciaIr.ejecutar();
+        PruebasH5.ejecutar();
+        PruebasH6.ejecutar();
+        PruebasH7.ejecutar();
         acepta("programa minimo", "{ public class Main { public main() { } } }");
         conservaUbicacionFuente();
         acepta("sufijos y expresiones", "{ public class Main { public main() { "

@@ -30,9 +30,14 @@ def main():
                        + [str(p) for p in fuentes], check=True, cwd=raiz)
         jar_temporal = Path(temporal) / destino.name
         comando = [jar, '--create', '--file', str(jar_temporal), '--main-class', 'Main',
-                   '-C', str(clases), '.', '-C', str(raiz / 'untitled'), 'ejemplos']
+                   '-C', str(clases), '.', '-C', str(raiz / 'untitled'), 'ejemplos',
+                   '-C', str(raiz / 'untitled' / 'src'), 'runtime/jdk11']
         for nombre in ['README_ENTREGA.md', 'GRAMATICA_CANONICA.md', 'CONTRATO_SEMANTICO.md',
-                       'PRUEBAS_COMPOSICION.md', 'PRUEBAS_RECUPERACION.md']:
+                       'PRUEBAS_COMPOSICION.md', 'PRUEBAS_RECUPERACION.md',
+                       'CONTRATO_EJECUCION.md', 'CONTRATO_MULTIPLATAFORMA.md', 'IR_DIDACTICA.md', 'IR_TIPADA.md', 'AUDITORIA_IR.md', 'ROADMAP_GENERACION_CODIGO.md',
+                       'ESPECIFICACION_RUNTIME_CONSOLA.md', 'IR_EJECUTABLE_H2.md', 'IR_EJECUTABLE_H3.md', 'IR_ATOMICA.md', 'RUNTIME_NATIVO_H4.md', 'GENERACION_NATIVA_H5.md', 'INTEGRACION_NATIVA_H6.md', 'OPTIMIZACION_H7.md',
+                       'runtime/terceros/openjdk11', 'runtime/nativo',
+                       'runtime/especificacion/consola_v1.json', 'runtime/especificacion/float_java11_v1.json']:
             comando.extend(['-C', str(raiz), nombre])
         subprocess.run(comando, check=True, cwd=raiz)
         shutil.copy2(jar_temporal, destino)

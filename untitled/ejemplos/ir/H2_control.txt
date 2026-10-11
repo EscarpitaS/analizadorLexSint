@@ -1,0 +1,14 @@
+import runtime.Consola;
+{
+    public class Programa {
+        public main() {
+            Consola consola = new Consola();
+            int n = 3;
+            while (n > 0) { consola.imprimirLinea(n); n -= 1; }
+            repeat (false) { consola.imprimirLinea("No se ejecuta"); }
+            bool corto = false && consola.leerBool();
+            consola.imprimirLinea("Cortocircuito: " + corto);
+            consola.imprimirLinea(1.0 / 2);
+        }
+    }
+}

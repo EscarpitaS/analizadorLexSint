@@ -1,0 +1,25 @@
+import runtime.Consola;
+
+{
+    public class Factorial {
+        int factorial(int n) {
+            if (n <= 1) {
+                return 1;
+            }
+            return n * factorial(n - 1);
+        }
+
+        public main() {
+            Consola sc = new Consola();
+            sc.imprimir("Introduce un numero entre 0 y 20: ");
+            int numero = sc.leerInt();
+
+            if (numero < 0 || numero > 20) {
+                sc.imprimirLinea("El numero debe estar entre 0 y 20.");
+            } else {
+                int resultado = factorial(numero);
+                sc.imprimirLinea("Factorial de " + numero + " = " + resultado);
+            }
+        }
+    }
+}

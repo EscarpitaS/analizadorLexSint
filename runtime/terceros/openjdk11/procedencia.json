@@ -1,0 +1,41 @@
+{
+  "proyecto": "OpenJDK 11",
+  "version": "jdk-11+28",
+  "licencia": "GPL-2.0-only WITH Classpath-exception-2.0",
+  "archivos": [
+    {
+      "archivo": "untitled/src/runtime/jdk11/FloatingDecimal.java",
+      "fuente": "https://raw.githubusercontent.com/openjdk/jdk11u/jdk-11%2B28/src/java.base/share/classes/jdk/internal/math/FloatingDecimal.java",
+      "sha256_original": "8c95a03aa620280cabc43e6996042ebbb7e8c430377f107000219c573b553b03",
+      "sha256_adaptado": "eb849914bd964d5fd4784662a5118bf04733e589df52e79a78931fc4f6bc7ab2",
+      "cambio": "package jdk.internal.math → runtime.jdk11"
+    },
+    {
+      "archivo": "untitled/src/runtime/jdk11/FDBigInteger.java",
+      "fuente": "https://raw.githubusercontent.com/openjdk/jdk11u/jdk-11%2B28/src/java.base/share/classes/jdk/internal/math/FDBigInteger.java",
+      "sha256_original": "d07434810841cf5c585ac6c1a770fa1ce8e3ae44bada2395ab12b51d6f7d1119",
+      "sha256_adaptado": "0f29912b1ff1e1def017d3933b426366cf05dab99be22d47546152c917f3e944",
+      "cambio": "package jdk.internal.math → runtime.jdk11"
+    },
+    {
+      "archivo": "untitled/src/runtime/jdk11/DoubleConsts.java",
+      "fuente": "https://raw.githubusercontent.com/openjdk/jdk11u/jdk-11%2B28/src/java.base/share/classes/jdk/internal/math/DoubleConsts.java",
+      "sha256_original": "5c1967466c55f0531e644eb7ddaff2cd99ce93e719805b13b1023e9bf37a8434",
+      "sha256_adaptado": "b7dba48d9aa4da20c72ccb83d380cf3213d3a2099b4a624f9e1537ab0d8098c6",
+      "cambio": "package jdk.internal.math → runtime.jdk11"
+    },
+    {
+      "archivo": "untitled/src/runtime/jdk11/FloatConsts.java",
+      "fuente": "https://raw.githubusercontent.com/openjdk/jdk11u/jdk-11%2B28/src/java.base/share/classes/jdk/internal/math/FloatConsts.java",
+      "sha256_original": "c6cbbb8e899cb5e9a0eff4d3016b26cb6c2b939b77f14bf492aa531b39421dd0",
+      "sha256_adaptado": "c3a56c830de36b4addb5b051fc080892b912d1a8880f199ebeccf9781bca1fde",
+      "cambio": "package jdk.internal.math → runtime.jdk11"
+    }
+  ],
+  "puerto_nativo": {
+    "archivo": "runtime/nativo/src/rt_float_java11.c",
+    "sha256": "9b74ddeca454cf43af37aca6ef89bf4f797d9186a372c391853d256f8f2135a3",
+    "derivado_de": "FloatingDecimal.java, BinaryToASCIIBuffer y getBinaryToASCIIConverter(double), OpenJDK jdk-11+28",
+    "cambios": "C11; enteros unsigned con overflow definido; big integers de 2048 bits especializados para binary64; sin JVM, formato sin printf; conserva pruebas de parada y redondeo de las ramas int32/int64/bigint."
+  }
+}

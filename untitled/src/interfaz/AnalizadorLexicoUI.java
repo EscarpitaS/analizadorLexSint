@@ -47,6 +47,8 @@ class AnalizadorLexicoUI extends JFrame {
     private long solicitudAnalisis;
     private long revisionAnalizada = -1;
     private Path archivoAnalizado;
+    private VisorIr visorIr;
+    private VisorNativo visorNativo;
 
     AnalizadorLexicoUI() {
         super("Lexer / Parser");
@@ -72,7 +74,10 @@ class AnalizadorLexicoUI extends JFrame {
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override public void windowClosing(java.awt.event.WindowEvent e) {
-                if (confirmarCambiosPendientes()) { dispose(); System.exit(0); }
+                if (confirmarCambiosPendientes()) {
+                    if (visorNativo != null) visorNativo.cancelar();
+                    dispose(); System.exit(0);
+                }
             }
         });
         setMinimumSize(new Dimension(1120, 760));
@@ -133,6 +138,7 @@ class AnalizadorLexicoUI extends JFrame {
         final String fuente = editor.getTexto();
         final long revision = editor.getRevision();
         final long solicitud = ++solicitudAnalisis;
+        if (visorNativo != null) visorNativo.marcarDesactualizado();
         analizando = true;
         analizarButton.setEnabled(false);
         guardarReporteButton.setEnabled(false);
@@ -141,10 +147,11 @@ class AnalizadorLexicoUI extends JFrame {
 
         final boolean validarImports = identidad != null && validarImportsCheck.isSelected();
 
-        SwingWorker<List<Main.ResultadoAnalisis>, Void> worker = new SwingWorker<>() {
+        SwingWorker<AnalisisConIr, Void> worker = new SwingWorker<>() {
             @Override
-            protected List<Main.ResultadoAnalisis> doInBackground() throws Exception {
-                return Main.analizarProyecto(ruta, fuente, validarImports);
+            protected AnalisisConIr doInBackground() throws Exception {
+                List<Main.ResultadoAnalisis> unidades = Main.analizarProyecto(ruta, fuente, validarImports);
+                return new AnalisisConIr(unidades, VisorIr.generar(unidades, ruta));
             }
 
             @Override
@@ -171,7 +178,14 @@ class AnalizadorLexicoUI extends JFrame {
         worker.execute();
     }
 
-    // --- EL RESTO DE MÉTODOS SE MANTIENEN IGUAL (TABLAS, RENDERS, ETC) ---
+    private static final class AnalisisConIr {
+        final List<Main.ResultadoAnalisis> unidades;
+        final VisorIr.Resultado ir;
+        AnalisisConIr(List<Main.ResultadoAnalisis> unidades, VisorIr.Resultado ir) {
+            this.unidades = unidades;
+            this.ir = ir;
+        }
+    }
 
     private JComponent crearContenido() {
         JPanel panel = new JPanel(new BorderLayout());
@@ -346,11 +360,18 @@ class AnalizadorLexicoUI extends JFrame {
         }
     }
 
-    private void mostrarResultados(List<Main.ResultadoAnalisis> resultados) {
+    private void mostrarResultados(AnalisisConIr analisis) {
+        List<Main.ResultadoAnalisis> resultados = analisis.unidades;
         ultimosResultados = new ArrayList<>(resultados);
         guardarReporteButton.setEnabled(!ultimosResultados.isEmpty());
+        if (visorNativo != null) visorNativo.cancelar();
+        Path principal = archivoActual == null ? Paths.get("Sin_titulo.txt").toAbsolutePath().normalize() : archivoActual;
+        ProyectoNativo proyecto = new ProyectoNativo(analisis.ir, resultados, principal);
         ResumenResultados resumen = llenarPestanas(pestanas, resultados,
-                resultado -> crearPanelArchivo(resultado, tokensSinEOF(resultado.lexico.getTokens())));
+                resultado -> crearPanelArchivo(resultado, tokensSinEOF(resultado.lexico.getTokens())), analisis.ir, proyecto);
+        visorIr = (VisorIr) pestanas.getComponentAt(resultados.size());
+        visorNativo = (VisorNativo) pestanas.getComponentAt(resultados.size() + 1);
+        visorNativo.alCambiarDependencia(this::marcarResultadosDesactualizados);
         int totalTokens = resumen.tokens;
         int totalErrores = resumen.errores;
 
@@ -360,11 +381,20 @@ class AnalizadorLexicoUI extends JFrame {
 
         if (totalErrores == 0) {
             estadoLabel.setForeground(Color.BLACK);
-            estadoLabel.setText("Análisis completado sin errores.");
+            estadoLabel.setText(analisis.ir.esExitoso() ? "Análisis completado sin errores. IR generada y verificada."
+                    : "Análisis completado. Consulta los diagnósticos en IR del proyecto.");
         } else {
             estadoLabel.setForeground(Color.BLACK);
             estadoLabel.setText("Análisis completado con " + totalErrores + " error(es).");
         }
+    }
+
+    static ResumenResultados llenarPestanas(JTabbedPane tabs, List<Main.ResultadoAnalisis> resultados,
+            java.util.function.Function<Main.ResultadoAnalisis, JComponent> crearPanel,
+            VisorIr.Resultado ir, ProyectoNativo proyecto) {
+        ResumenResultados resumen = llenarPestanas(tabs, resultados, crearPanel, ir);
+        tabs.addTab("ASM y ejecutable", new VisorNativo(proyecto));
+        return resumen;
     }
 
     /** Presentación verificable sin construir una ventana ni requerir una pantalla. */
@@ -386,6 +416,13 @@ class AnalizadorLexicoUI extends JFrame {
         final int tokens;
         final int errores;
         ResumenResultados(int tokens, int errores) { this.tokens = tokens; this.errores = errores; }
+    }
+
+    static ResumenResultados llenarPestanas(JTabbedPane pestanas, List<Main.ResultadoAnalisis> resultados,
+            java.util.function.Function<Main.ResultadoAnalisis, JComponent> crearPanel, VisorIr.Resultado ir) {
+        ResumenResultados resumen = llenarPestanas(pestanas, resultados, crearPanel);
+        pestanas.addTab("IR del proyecto", new VisorIr(ir));
+        return resumen;
     }
 
     private JComponent crearPanelArchivo(Main.ResultadoAnalisis resultado, List<Token> tokensVisibles) {
@@ -607,6 +644,9 @@ class AnalizadorLexicoUI extends JFrame {
     }
 
     private void limpiarResultados() {
+        if (visorNativo != null) visorNativo.cancelar();
+        visorNativo = null;
+        visorIr = null;
         pestanas.removeAll();
         ultimosResultados.clear();
         guardarReporteButton.setEnabled(false);
@@ -693,6 +733,8 @@ class AnalizadorLexicoUI extends JFrame {
 
     private void marcarResultadosDesactualizados() {
         if (ultimosResultados.isEmpty()) return;
+        if (visorIr != null) visorIr.marcarDesactualizado();
+        if (visorNativo != null) visorNativo.marcarDesactualizado();
         espacioTrabajo.setTitleAt(1, "Resultados (desactualizados)");
         guardarReporteButton.setEnabled(false);
         if (!analizando) {

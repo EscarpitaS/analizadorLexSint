@@ -1,0 +1,19 @@
+import runtime.Consola;
+{
+    public class Programa {
+        int factorial(int n) {
+            if (n <= 1) { return 1; }
+            return n * factorial(n - 1);
+        }
+        public main() {
+            Consola consola = new Consola();
+            consola.imprimir("Número entre 0 y 20: ");
+            int n = consola.leerInt();
+            if (n < 0 || n > 20) {
+                consola.imprimirLinea("Fuera del rango de este ejemplo.");
+            } else {
+                consola.imprimirLinea("Factorial: " + factorial(n));
+            }
+        }
+    }
+}

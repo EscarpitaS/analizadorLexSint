@@ -218,3 +218,17 @@ global, el ciclo `for`, `each` sin `repeat`, `repeat while`, el tipo primitivo
 dos puntos después de `if`, ni separadores `.` en argumentos o parámetros.
 Se podrán incorporar más adelante mediante una actualización explícita de esta
 especificación y sus pruebas.
+
+## Biblioteca de consola prevista (RC-1)
+
+La API de entrada/salida se especificó en
+[ESPECIFICACION_RUNTIME_CONSOLA.md](ESPECIFICACION_RUNTIME_CONSOLA.md).
+Usará `import runtime.Consola;`, `Consola consola = new Consola();` y llamadas
+como `consola.imprimirLinea(valor)` o `consola.leerInt()`. Todas esas formas
+utilizan las producciones existentes de imports, tipos ID, construcción y
+llamadas; los nombres no se convierten en palabras reservadas.
+
+La biblioteca dispone de soporte semántico explícito y registro de símbolos
+integrados; H2/H3 generan y ejecutan sus llamadas en las IR de referencia.
+H4 aporta el runtime C nativo; H5 emitirá los cuerpos NASM del programa completo.
+La BNF y sus 53 producciones permanecen vigentes.

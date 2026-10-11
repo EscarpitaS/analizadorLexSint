@@ -1,0 +1,2251 @@
+{
+  "format_version": 1,
+  "contract": "RC-1",
+  "status": "interprete_h3_89_de_90_runtime_nativo_h4_90_de_90",
+  "description": "Cada caso usa una Consola integrada no nula y canales nuevos. Las operaciones comparten stdin/stdout del caso. EOF se alcanza al terminar los bytes suministrados. Un fallo termina la secuencia; su diagnóstico va a stderr con el origen de la llamada y exit_status=1.",
+  "encoding": {
+    "stdin": "hex o repeat_hex+count+suffix_hex, sin normalización adicional",
+    "stdout_hex": "bytes exactos UTF-8/binarios de salida",
+    "returns": "resultado por operation_index; enteros y floats como texto, bool JSON, string texto/null o value_repeat",
+    "arguments": "valores ya obtenidos del programa; NaN/Infinity no son literales fuente ni entradas permitidas de leerFloat",
+    "inject": "eventos abstractos para canales/allocators del harness; no son argumentos de la API del lenguaje",
+    "delivery": "chunks_hex opcional: fragmentación impuesta por el adaptador de pruebas; su concatenación debe igualar stdin. No requiere que el SO conserve los límites de write al leer un pipe."
+  },
+  "cases": [
+    {
+      "id": "int_cero",
+      "stdin": {
+        "hex": "300a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "int",
+            "value": "0"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "int_maximo",
+      "stdin": {
+        "hex": "393232333337323033363835343737353830370a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "int",
+            "value": "9223372036854775807"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "int_minimo",
+      "stdin": {
+        "hex": "2d393232333337323033363835343737353830380a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "int",
+            "value": "-9223372036854775808"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "int_espacios_signo_ceros",
+      "stdin": {
+        "hex": "20092b30303034320d0a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "int",
+            "value": "42"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "int_overflow",
+      "stdin": {
+        "hex": "393232333337323033363835343737353830380a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_FUERA_DE_RANGO",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "int_underflow",
+      "stdin": {
+        "hex": "2d393232333337323033363835343737353830390a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_FUERA_DE_RANGO",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "int_prefijo",
+      "stdin": {
+        "hex": "31326162630a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "int_dos_tokens",
+      "stdin": {
+        "hex": "31322033340a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "int_decimal",
+      "stdin": {
+        "hex": "312e300a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "int_hexadecimal",
+      "stdin": {
+        "hex": "307831300a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "int_vacio",
+      "stdin": {
+        "hex": "0a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "int_espacios",
+      "stdin": {
+        "hex": "20090a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "int_nul",
+      "stdin": {
+        "hex": "3132000a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "int_espacio_unicode",
+      "stdin": {
+        "hex": "c2a031320a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "int_bom",
+      "stdin": {
+        "hex": "efbbbf31320a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "float_decimal",
+      "stdin": {
+        "hex": "332e350a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "float",
+            "value": "3.5"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "float_entero",
+      "stdin": {
+        "hex": "31320a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "float",
+            "value": "12.0"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "float_exponente",
+      "stdin": {
+        "hex": "3165330a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "float",
+            "value": "1000.0"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "float_cero_negativo",
+      "stdin": {
+        "hex": "2d302e300a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "float",
+            "value": "-0.0",
+            "binary64_bits_hex": "8000000000000000"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "float_underflow",
+      "stdin": {
+        "hex": "2d31652d343030300a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "float",
+            "value": "-0.0",
+            "binary64_bits_hex": "8000000000000000"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "float_cero_exponente_grande",
+      "stdin": {
+        "hex": "30653939393939393939393939393939393939390a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "float",
+            "value": "0.0"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "float_overflow",
+      "stdin": {
+        "hex": "31653330390a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_FUERA_DE_RANGO",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "float_coma",
+      "stdin": {
+        "hex": "312c350a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "float_sin_entero",
+      "stdin": {
+        "hex": "2e350a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "float_sin_fraccion",
+      "stdin": {
+        "hex": "312e0a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "float_exponente_incompleto",
+      "stdin": {
+        "hex": "31650a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "float_nan",
+      "stdin": {
+        "hex": "4e614e0a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "float_infinito",
+      "stdin": {
+        "hex": "496e66696e6974790a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "float_sufijo",
+      "stdin": {
+        "hex": "312e30660a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "bool_true",
+      "stdin": {
+        "hex": "747275650a"
+      },
+      "operations": [
+        {
+          "method": "leerBool"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "bool",
+            "value": true
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "bool_false",
+      "stdin": {
+        "hex": "200966616c73650d0a"
+      },
+      "operations": [
+        {
+          "method": "leerBool"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "bool",
+            "value": false
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "bool_mayusculas",
+      "stdin": {
+        "hex": "547275650a"
+      },
+      "operations": [
+        {
+          "method": "leerBool"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "bool_numero",
+      "stdin": {
+        "hex": "310a"
+      },
+      "operations": [
+        {
+          "method": "leerBool"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "bool_palabra_extra",
+      "stdin": {
+        "hex": "747275652066616c73650a"
+      },
+      "operations": [
+        {
+          "method": "leerBool"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "linea_vacia",
+      "stdin": {
+        "hex": "0a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        },
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": ""
+          },
+          {
+            "operation_index": 1,
+            "type": "string",
+            "value": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "linea_crlf",
+      "stdin": {
+        "hex": "486f6c610d0a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        },
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "Hola"
+          },
+          {
+            "operation_index": 1,
+            "type": "string",
+            "value": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "linea_unicode",
+      "stdin": {
+        "hex": "4a6f73c3a9f09f98800a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        },
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "José😀"
+          },
+          {
+            "operation_index": 1,
+            "type": "string",
+            "value": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "linea_nul",
+      "stdin": {
+        "hex": "6100620a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        },
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "a\u0000b"
+          },
+          {
+            "operation_index": 1,
+            "type": "string",
+            "value": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "linea_espacios",
+      "stdin": {
+        "hex": "20206120200a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        },
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "  a  "
+          },
+          {
+            "operation_index": 1,
+            "type": "string",
+            "value": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "linea_bom",
+      "stdin": {
+        "hex": "efbbbf610a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        },
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "﻿a"
+          },
+          {
+            "operation_index": 1,
+            "type": "string",
+            "value": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "linea_unicode_sin_normalizar",
+      "stdin": {
+        "hex": "65cc810a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        },
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "é"
+          },
+          {
+            "operation_index": 1,
+            "type": "string",
+            "value": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "linea_cr_solitario",
+      "stdin": {
+        "hex": "610d620a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        },
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "a\rb"
+          },
+          {
+            "operation_index": 1,
+            "type": "string",
+            "value": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "linea_final_sin_lf",
+      "stdin": {
+        "hex": "486f6c61"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        },
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "Hola"
+          },
+          {
+            "operation_index": 1,
+            "type": "string",
+            "value": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "linea_cr_final",
+      "stdin": {
+        "hex": "0d"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        },
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "\r"
+          },
+          {
+            "operation_index": 1,
+            "type": "string",
+            "value": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "eof_linea",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        },
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": null
+          },
+          {
+            "operation_index": 1,
+            "type": "string",
+            "value": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "eof_leerInt",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "FIN_DE_ENTRADA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "eof_leerFloat",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "FIN_DE_ENTRADA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "eof_leerBool",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "leerBool"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "FIN_DE_ENTRADA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "lecturas_mixtas_sin_salto_pendiente",
+      "stdin": {
+        "hex": "32310a416e610a747275650a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        },
+        {
+          "method": "leerLinea"
+        },
+        {
+          "method": "leerBool"
+        },
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "int",
+            "value": "21"
+          },
+          {
+            "operation_index": 1,
+            "type": "string",
+            "value": "Ana"
+          },
+          {
+            "operation_index": 2,
+            "type": "bool",
+            "value": true
+          },
+          {
+            "operation_index": 3,
+            "type": "string",
+            "value": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "int_ultima_linea_sin_lf",
+      "stdin": {
+        "hex": "37"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        },
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "int",
+            "value": "7"
+          },
+          {
+            "operation_index": 1,
+            "type": "string",
+            "value": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "utf8_continuacion",
+      "stdin": {
+        "hex": "800a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "UTF8_INVALIDO",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "utf8_truncado",
+      "stdin": {
+        "hex": "e2820a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "UTF8_INVALIDO",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "utf8_sobre_largo",
+      "stdin": {
+        "hex": "c0800a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "UTF8_INVALIDO",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "utf8_sustituto",
+      "stdin": {
+        "hex": "eda0800a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "UTF8_INVALIDO",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "utf8_fuera_unicode",
+      "stdin": {
+        "hex": "f49080800a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "UTF8_INVALIDO",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "linea_limite",
+      "stdin": {
+        "repeat_hex": "61",
+        "count": 1048576,
+        "suffix_hex": "0a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value_repeat": {
+              "hex": "61",
+              "count": 1048576
+            }
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "linea_limite_crlf",
+      "stdin": {
+        "repeat_hex": "61",
+        "count": 1048576,
+        "suffix_hex": "0d0a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value_repeat": {
+              "hex": "61",
+              "count": 1048576
+            }
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "linea_supera_limite",
+      "stdin": {
+        "repeat_hex": "61",
+        "count": 1048577,
+        "suffix_hex": "0a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "LINEA_DEMASIADO_LARGA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "salida_tipos_escalares",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "int",
+            "value": "-9223372036854775808"
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "float",
+            "value": "3.5"
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "float",
+            "value": "-0.0"
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "float",
+            "value": "10000000.0"
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "float",
+            "value": "NaN"
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "float",
+            "value": "Infinity"
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "float",
+            "value": "-Infinity"
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "bool",
+            "value": true
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "bool",
+            "value": false
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "null",
+            "value": null
+          }
+        }
+      ],
+      "expected": {
+        "stdout_hex": "2d393232333337323033363835343737353830380a332e350a2d302e300a312e3045370a4e614e0a496e66696e6974790a2d496e66696e6974790a747275650a66616c73650a6e756c6c0a",
+        "exit_status": 0,
+        "returns": [],
+        "error": null
+      }
+    },
+    {
+      "id": "salida_texto_literal",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "imprimir",
+          "argument": {
+            "type": "string",
+            "value": "%d\\n"
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "string",
+            "value": "á😀\u0000"
+          }
+        },
+        {
+          "method": "imprimirLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "25645c6ec3a1f09f9880000a0a",
+        "exit_status": 0,
+        "returns": [],
+        "error": null
+      }
+    },
+    {
+      "id": "salida_string_nula",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "string",
+            "value": null
+          }
+        }
+      ],
+      "expected": {
+        "stdout_hex": "6e756c6c0a",
+        "exit_status": 0,
+        "returns": [],
+        "error": null
+      }
+    },
+    {
+      "id": "salida_texto_vacio",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "imprimir",
+          "argument": {
+            "type": "string",
+            "value": ""
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "string",
+            "value": ""
+          }
+        }
+      ],
+      "expected": {
+        "stdout_hex": "0a",
+        "exit_status": 0,
+        "returns": [],
+        "error": null
+      }
+    },
+    {
+      "id": "salida_lista_y_objeto",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "list<int>",
+            "value": [
+              "1",
+              "2"
+            ]
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "list<int>",
+            "value": []
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "objeto",
+            "value": {
+              "dynamic_class": "Persona"
+            }
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "Consola",
+            "value": {
+              "dynamic_class": "Consola"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "stdout_hex": "5b312c20325d0a5b5d0a3c506572736f6e613e0a3c436f6e736f6c613e0a",
+        "exit_status": 0,
+        "returns": [],
+        "error": null
+      }
+    },
+    {
+      "id": "prompt_y_lectura",
+      "stdin": {
+        "hex": "34320a"
+      },
+      "operations": [
+        {
+          "method": "imprimir",
+          "argument": {
+            "type": "string",
+            "value": "Edad: "
+          }
+        },
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "456461643a20",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 1,
+            "type": "int",
+            "value": "42"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "error_no_continua",
+      "stdin": {
+        "hex": "6d616c0a"
+      },
+      "operations": [
+        {
+          "method": "imprimir",
+          "argument": {
+            "type": "string",
+            "value": "Edad: "
+          }
+        },
+        {
+          "method": "leerInt"
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "string",
+            "value": "NO DEBE APARECER"
+          }
+        }
+      ],
+      "expected": {
+        "stdout_hex": "456461643a20",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 1
+        }
+      }
+    },
+    {
+      "id": "error_lectura_parcial",
+      "stdin": {
+        "hex": "31320a"
+      },
+      "operations": [
+        {
+          "method": "leerInt"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ERROR_LECTURA_CONSOLA",
+          "operation_index": 0
+        }
+      },
+      "inject": {
+        "kind": "read_error",
+        "operation_index": 0,
+        "after_payload_bytes": 2
+      }
+    },
+    {
+      "id": "error_escritura_parcial",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "string",
+            "value": "abcd"
+          }
+        },
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "string",
+            "value": "NO DEBE APARECER"
+          }
+        }
+      ],
+      "expected": {
+        "stdout_hex": "6162",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ERROR_ESCRITURA_CONSOLA",
+          "operation_index": 0
+        }
+      },
+      "inject": {
+        "kind": "write_error",
+        "operation_index": 0,
+        "after_payload_bytes": 2
+      }
+    },
+    {
+      "id": "error_flush",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "imprimir",
+          "argument": {
+            "type": "string",
+            "value": "abcd"
+          }
+        }
+      ],
+      "expected": {
+        "stdout_hex": "61626364",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ERROR_ESCRITURA_CONSOLA",
+          "operation_index": 0
+        }
+      },
+      "inject": {
+        "kind": "flush_error",
+        "operation_index": 0,
+        "payload_transferred": true
+      }
+    },
+    {
+      "id": "error_memoria",
+      "stdin": {
+        "hex": "746578746f0a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "MEMORIA_AGOTADA",
+          "operation_index": 0
+        }
+      },
+      "inject": {
+        "kind": "allocation_error",
+        "operation_index": 0,
+        "phase": "returned_string"
+      }
+    },
+    {
+      "id": "float_salida_umbral_inferior",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "float",
+            "value": "0.001"
+          }
+        }
+      ],
+      "expected": {
+        "stdout_hex": "302e3030310a",
+        "exit_status": 0,
+        "returns": [],
+        "error": null
+      }
+    },
+    {
+      "id": "float_salida_bajo_umbral",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "float",
+            "value": "0.0001"
+          }
+        }
+      ],
+      "expected": {
+        "stdout_hex": "312e30452d340a",
+        "exit_status": 0,
+        "returns": [],
+        "error": null
+      }
+    },
+    {
+      "id": "float_salida_bajo_umbral_superior",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "float",
+            "value": "9999999.0"
+          }
+        }
+      ],
+      "expected": {
+        "stdout_hex": "393939393939392e300a",
+        "exit_status": 0,
+        "returns": [],
+        "error": null
+      }
+    },
+    {
+      "id": "float_salida_umbral_superior",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "float",
+            "value": "10000000.0"
+          }
+        }
+      ],
+      "expected": {
+        "stdout_hex": "312e3045370a",
+        "exit_status": 0,
+        "returns": [],
+        "error": null
+      }
+    },
+    {
+      "id": "float_hex_exponente",
+      "stdin": {
+        "hex": "3078312e6670330a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "float_inf_abreviado",
+      "stdin": {
+        "hex": "496e660a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "float_nan_payload",
+      "stdin": {
+        "hex": "4e614e287061796c6f6164290a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "float_prefijo_basura",
+      "stdin": {
+        "hex": "31326162630a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "float_nul_interno",
+      "stdin": {
+        "hex": "3132006162630a"
+      },
+      "operations": [
+        {
+          "method": "leerFloat"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ENTRADA_INVALIDA",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "utf8_limite_2_bytes",
+      "stdin": {
+        "hex": "dfbf0a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "߿"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "utf8_inicio_3_bytes",
+      "stdin": {
+        "hex": "e0a0800a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "ࠀ"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "utf8_antes_sustitutos",
+      "stdin": {
+        "hex": "ed9fbf0a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "퟿"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "utf8_despues_sustitutos",
+      "stdin": {
+        "hex": "ee80800a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": ""
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "utf8_maximo_unicode",
+      "stdin": {
+        "hex": "f48fbfbf0a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "􏿿"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "utf8_overlong_3_bytes",
+      "stdin": {
+        "hex": "e080800a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "UTF8_INVALIDO",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "utf8_overlong_4_bytes",
+      "stdin": {
+        "hex": "f08080800a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "UTF8_INVALIDO",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "utf8_inicio_f5",
+      "stdin": {
+        "hex": "f58080800a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "UTF8_INVALIDO",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "utf8_byte_ff",
+      "stdin": {
+        "hex": "ff0a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "UTF8_INVALIDO",
+          "operation_index": 0
+        }
+      }
+    },
+    {
+      "id": "utf8_partido_entre_bloques",
+      "stdin": {
+        "hex": "41f09f9880420a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 0,
+        "returns": [
+          {
+            "operation_index": 0,
+            "type": "string",
+            "value": "A😀B"
+          }
+        ],
+        "error": null
+      },
+      "delivery": {
+        "chunks_hex": [
+          "41f0",
+          "9f",
+          "98",
+          "80420a"
+        ]
+      }
+    },
+    {
+      "id": "utf8_sustituto_partido",
+      "stdin": {
+        "hex": "eda0800a"
+      },
+      "operations": [
+        {
+          "method": "leerLinea"
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "UTF8_INVALIDO",
+          "operation_index": 0
+        }
+      },
+      "delivery": {
+        "chunks_hex": [
+          "ed",
+          "a0",
+          "800a"
+        ]
+      }
+    },
+    {
+      "id": "stdout_pipe_roto",
+      "stdin": {
+        "hex": ""
+      },
+      "operations": [
+        {
+          "method": "imprimirLinea",
+          "argument": {
+            "type": "string",
+            "value": "hola"
+          }
+        }
+      ],
+      "expected": {
+        "stdout_hex": "",
+        "exit_status": 1,
+        "returns": [],
+        "error": {
+          "code": "ERROR_ESCRITURA_CONSOLA",
+          "operation_index": 0
+        }
+      },
+      "inject": {
+        "kind": "pipe_broken",
+        "channel": "stdout",
+        "operation_index": 0,
+        "errno_symbol": "EPIPE",
+        "after_payload_bytes": 0
+      }
+    }
+  ]
+}
